@@ -1,0 +1,15 @@
+tmgmt.translator.settings.textmaster:
+  type: mapping
+  mapping:
+    auto_accept:
+      type: boolean
+      label: Automatically accept
+    url:
+      type: string
+      label: Remote URL, used for tests.
+    api_key:
+      type: string
+      label: API key
+    api_secret:
+      type: string
+      label: API Secret
