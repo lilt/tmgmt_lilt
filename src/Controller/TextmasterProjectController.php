@@ -28,12 +28,11 @@ class TextmasterProjectController extends ControllerBase {
     $job = Job::load($tm_job_id);
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
-    $translator_plugin->setTranslator($job->getTranslator());
-
     if (!$translator_plugin instanceof TextmasterTranslator) {
-      $message = $this->t('Could not launch the job with Translation plagin different from TextMaster');
-      return $this->redirectToJobsList($message, 'notice');
+      $message = $this->t('Could not launch the job with Translation plugin different from TextMaster');
+      return $this->redirectToJobsList($message, 'warning');
     }
+    $translator_plugin->setTranslator($job->getTranslator());
     // Check the status of the projectin TextMaster.
     $tm_project_data = $translator_plugin->getTmProject($tm_project_id);
     if (!isset($tm_project_data['status'])) {
@@ -48,7 +47,7 @@ class TextmasterProjectController extends ControllerBase {
 
     $message = $this->t('The TextMaster project @project_id was successfully launched', ['@project_id' => $tm_project_id]);
     $job->addMessage($message);
-    return $this->redirectToJobsList($message, 'success');
+    return $this->redirectToJobsList($message);
   }
 
   /**
@@ -62,11 +61,11 @@ class TextmasterProjectController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\RedirectResponse
    *   Redirect response.
    */
-  public function redirectToJobsList($message = '', $type = 'info') {
+  public function redirectToJobsList($message = '', $type = 'status') {
     if (!empty($message)) {
       drupal_set_message($message, $type);
     }
-    $jobs_list_url = Url::fromRoute('view.tmgmt_translation_all_job_items.page_1')
+    $jobs_list_url = Url::fromRoute('view.tmgmt_job_overview.page_1')
       ->toString();
     return new RedirectResponse($jobs_list_url);
   }

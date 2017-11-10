@@ -30,13 +30,11 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
     'title' => t('View on TextMaster'),
     'weight' => 10,
   );
-  if ($entity->getState() != TextmasterTranslator::STATE_LAUNCHED) {
-    $operations['launch'] = array(
-      'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
-      'title' => t('Launch'),
-      'weight' => 10,
-    );
-  }
+  $operations['launch'] = array(
+    'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
+    'title' => t('Launch'),
+    'weight' => 10,
+  );
   return $operations;
 }
 
