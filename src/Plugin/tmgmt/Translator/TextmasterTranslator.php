@@ -14,6 +14,7 @@ use Drupal\tmgmt\TranslatorPluginBase;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\tmgmt\Entity\Job;
 
 /**
  * TextMaster translation plugin controller.
@@ -134,6 +135,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   public function requestJobItemsTranslation(array $job_items) {
     /** @var \Drupal\tmgmt\Entity\Job $job */
     $job = reset($job_items)->getJob();
+    if ($job->isRejected()) {
+      // Change the status to Unprocessed to allow submit again.
+      $job->setState(Job::STATE_UNPROCESSED);
+    }
     $this->setTranslator($job->getTranslator());
     $project_id = 0;
     $due_date = $job->getSetting('deadline');
@@ -165,16 +170,9 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         }
       }
       // TODO: add this step after fixing.
-//      $this->finalizeTmProject($project_id);
+      $this->finalizeTmProject($project_id);
     }
     catch (TMGMTException $e) {
-      try {
-        $this->sendFileError('RestartPoint03', $project_id, '', $job, $due_date, $e->getMessage(), TRUE);
-      }
-      catch (TMGMTException $e) {
-        \Drupal::logger('tmgmt_textmaster')
-          ->error('Error sending the error file: @error', ['@error' => $e->getMessage()]);
-      }
       $job->rejected('Job has been rejected with following error: @error',
         ['@error' => $e->getMessage()], 'error');
       if (isset($remote_mapping)) {
@@ -192,7 +190,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function checkTextmasterAuthentication() {
     try {
-      $result = $this->request('v1/clients/users/me', 'GET');
+      $result = $this->getTmAccountInfo();
       if ($result) {
         // Successfully Authenticated.
         return TRUE;
@@ -206,6 +204,16 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     return FALSE;
+  }
+
+  /**
+   * Gets the TextMaster Account information.
+   *
+   * @return array|int|null
+   *   Account info.
+   */
+  public function getTmAccountInfo() {
+    return $this->sendApiRequest('v1/clients/users/me');
   }
 
   /**
@@ -393,7 +401,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'deadline' => $due_date,
       ],
     ];
-    $result = $this->sendApiRequest('/v1/clients/projects', 'POST', $params);
+    $result = $this->sendApiRequest('v1/clients/projects', 'POST', $params);
 
     return $result['id'];
   }
@@ -406,7 +414,27 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function finalizeTmProject($project_id) {
     // TODO: check why this returns error.
-    $result = $this->sendApiRequest('/v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+  }
+
+  /**
+   * Get TextMaster project.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function getTmProject($project_id) {
+    try {
+      return $this->sendApiRequest('v1/clients/projects/' . $project_id);
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not get the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
   }
 
   /**
@@ -495,10 +523,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'document' => [
         'title' => $document_title,
         'remote_file_url' => $remote_file_url,
+        'deliver_work_as_file' => 'true',
         'perform_word_count' => 'true',
       ],
     ];
-    $result = $this->sendApiRequest('/v1/clients/projects/' . $project_id . '/documents', 'POST', $params, FALSE, FALSE);
+    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params, FALSE, FALSE);
 
     return $result['id'];
   }
@@ -570,8 +599,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 $translated++;
               }
               catch (TMGMTException $e) {
-                $restart_point = $old_state == 'TranslatableSource' ? 'RestartPoint01' : 'RestartPoint02';
-                $this->sendFileError($restart_point, $project_id, $job_part_id, $job_item->getJob(), $mapping->getRemoteData('RequiredBy'), $e->getMessage());
                 $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
                 continue;
               }
@@ -618,8 +645,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         return 1;
       }
       catch (TMGMTException $e) {
-        $restart_point = $old_state == 'TranslatableSource' ? 'RestartPoint01' : 'RestartPoint02';
-        $this->sendFileError($restart_point, $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3(), $job, $remote->getRemoteData('RequiredBy'), $e->getMessage());
         $job->addMessage('Error fetching the job item: @job_item.', [
           '@job_item' => $remote->getJobItem()
             ->label(),

@@ -4,3 +4,60 @@
  * @file
  * A description of what your module does.
  */
+
+use \Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Url;
+use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
+use Drupal\Core\Database\Database;
+
+/**
+ * Implements hook_entity_operation().
+ */
+function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
+  if ($entity->bundle() != 'tmgmt_job'
+    || !$entity->hasTranslator()
+    || $entity->getTranslatorId() != 'textmaster'
+  ) {
+    return;
+  }
+  $project_id = tmgmt_textmaster_get_project_by_job_id($entity->id());
+  if (!$project_id) {
+    return;
+  }
+
+  $operations['view_on_tm'] = array(
+    'url' => Url::fromUri('https://www.app.textmaster.com/clients/projects/' . $project_id),
+    'title' => t('View on TextMaster'),
+    'weight' => 10,
+  );
+  if ($entity->getState() != TextmasterTranslator::STATE_LAUNCHED) {
+    $operations['launch'] = array(
+      'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
+      'title' => t('Launch'),
+      'weight' => 10,
+    );
+  }
+  return $operations;
+}
+
+/**
+ * Get TextMaster project ID (last if more than 1) by translation job id.
+ *
+ * @param string $job_id
+ *   The ID of translation job.
+ *
+ * @return string|false
+ *   The TextMaster project ID or FALSE.
+ */
+function tmgmt_textmaster_get_project_by_job_id($job_id) {
+  $db = Database::getConnection();
+  $result = $db->select('tmgmt_remote', 'remote')
+    ->fields('remote', ['remote_identifier_2'])
+    ->condition('remote_identifier_1', 'tmgmt_textmaster', '=')
+    ->condition('tjid', $job_id, '=')
+    ->orderBy('trid', 'DESC')
+    ->range(0, 1)
+    ->execute()
+    ->fetchAssoc();
+  return (isset($result['remote_identifier_2'])) ? $result['remote_identifier_2'] : FALSE;
+}

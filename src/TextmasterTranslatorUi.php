@@ -21,6 +21,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
+    $tm_api_key_url = Url::fromUri('https://www.app.textmaster.com/clients/api_info')->toString();
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
@@ -33,14 +34,18 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'textfield',
       '#title' => t('TextMaster API key'),
       '#default_value' => $translator->getSetting('textmaster_api_key') ?: '',
-      '#description' => t('Please enter the TextMaster API key.'),
+      '#description' => t("Please enter the TextMaster API key. You can find it <a href=:api_key_url>here</a>", [
+        ':api_key_url' => $tm_api_key_url,
+      ]),
       '#required' => TRUE,
     ];
     $form['textmaster_api_secret'] = [
       '#type' => 'textfield',
       '#title' => t('TextMaster API secret'),
       '#default_value' => $translator->getSetting('textmaster_api_secret') ?: '',
-      '#description' => t('Please enter your TextMaster API secret.'),
+      '#description' => t("Please enter your TextMaster API secret. You can find it <a href=:api_key_url>here</a>", [
+        ':api_key_url' => $tm_api_key_url,
+      ]),
       '#required' => TRUE,
     ];
 
@@ -78,14 +83,25 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->setTranslator($job->getTranslator());
-    $templates_json = $translator_plugin->sendApiRequest('/v1/clients/api_templates');
+    // Account Credits.
+    $account_info = $translator_plugin->getTmAccountInfo();
+    if (!empty($account_info['wallet'])) {
+      $buy_credits_url = Url::fromUri('https://www.app.textmaster.com/clients/payment_requests/new');
+      $settings['account_credits'] = [
+        '#type' => 'item',
+        '#title' => t(' Available credits: @current_money @currency_code', [
+          '@current_money' => $account_info['wallet']['current_money'],
+          '@currency_code' => $account_info['wallet']['currency_code'],
+        ]),
+        '#markup' => Link::fromTextAndUrl(t('Buy credits on TextMaster'), $buy_credits_url)->toString(),
+      ];
+    }
 
-    // Get languages from select fields.
+    // Project Templates.
+    $templates_json = $translator_plugin->sendApiRequest('v1/clients/api_templates');
     $sourceLang = $job->getRemoteSourceLanguage();
     $targetLang = $job->getRemoteTargetLanguage();
-
     $templates = [];
-
     foreach ($templates_json['api_templates'] as $template) {
       // Display only templates which match the selected source & target langs.
       if ($template['language_from'] === $sourceLang && $targetLang === $template['language_to']) {
@@ -93,12 +109,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       }
     }
     if (empty($templates)) {
-
-      $tm_templates_url = Url::fromUri('https://www.app.textmaster.com/clients/project_templates/api_templates');
       $settings['add_template'] = [
         '#type' => 'item',
         '#title' => t('No project template?'),
-        '#markup' => 'The project template is required. You can create one ' . Link::fromTextAndUrl(t('here'), $tm_templates_url)->toString(),
+        '#markup' => t('The project template is required. You can create one <a href=:template_url>here</a>', [
+          ':template_url' => Url::fromUri('https://www.app.textmaster.com/clients/project_templates/api_templates')
+            ->toString(),
+        ]),
       ];
       return $settings;
     }
@@ -110,7 +127,8 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#required' => TRUE,
       '#default_value' => $job->getSetting('project_template'),
     ];
-    $tm_categories_json = $translator_plugin->sendApiRequest('/v1/public/categories');
+    // Project Categories.
+    $tm_categories_json = $translator_plugin->sendApiRequest('v1/public/categories');
     $categories = [];
     foreach ($tm_categories_json['categories'] as $category) {
       $categories[$category['code']] = $category['value'];
@@ -123,6 +141,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#required' => TRUE,
       '#default_value' => $job->getSetting('category'),
     ];
+    // Project Deadline.
     $settings['deadline'] = [
       '#type' => 'date',
       '#title' => t('Delivery date'),
