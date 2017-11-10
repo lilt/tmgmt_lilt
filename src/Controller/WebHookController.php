@@ -93,7 +93,7 @@ class WebHookController extends ControllerBase {
         $job = $remote->getJob();
         $job_item = $remote->getJobItem();
         try {
-          $translator_plugin->addFileDataToJob($remote->getJob(), $status, $project_id, $job_part_id);
+          $translator_plugin->addTranslationToJob($remote->getJob(), $status, $project_id, $job_part_id);
         }
         catch (TMGMTException $e) {
           $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
