@@ -11,7 +11,7 @@ use Drupal\tmgmt\TMGMTException;
 use Drupal\tmgmt\Translator\AvailableResult;
 use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt\TranslatorPluginBase;
-use Drupal\tmgmt_file\Plugin\tmgmt_file\Format\Xliff;
+use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -125,8 +125,16 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function requestTranslation(JobInterface $job) {
     $job = $this->requestJobItemsTranslation($job->getItems());
-    if (!$job->isRejected()) {
+    if ($job->isRejected()) {
+      return;
+    }
+    $job_remote_data = end($job->getRemoteMappings());
+    $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
+    if ($auto_launch) {
       $job->submitted();
+    }
+    else {
+      $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
     }
   }
 
@@ -161,6 +169,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
             'FileStateVersion' => 1,
             'TMState' => 'in_creation',
             'RequiredBy' => $due_date,
+            'TemplateAutoLaunch' => $this->isTemplateAutoLaunch($job->getSetting('project_template')),
           ],
         ]);
         $remote_mapping->save();
@@ -407,6 +416,75 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
+   * Function to check if api template "auto_launch" parameter is set TRUE.
+   *
+   * @param string $api_template_id
+   *   The ID of TextMaster API template.
+   *
+   * @return bool
+   *   True if template auto_launch parameter is set to true.
+   */
+  public function isTemplateAutoLaunch($api_template_id) {
+    $templates = $this->getTmApiTemplates();
+    foreach ($templates as $template) {
+      if ($template['id'] === $api_template_id) {
+        return $template['auto_launch'];
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Get TextMaster API templates.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function getTmApiTemplates() {
+    $cache = \Drupal::cache()
+      ->get('tmgmt_textmaster_api_templates');
+    if (!empty($cache)) {
+      return $cache->data;
+    }
+
+    try {
+      $templates = $this->allPagesResult('v1/clients/api_templates', 'api_templates');
+      \Drupal::cache()
+        ->set('tmgmt_textmaster_api_templates', $templates, CacheBackendInterface::CACHE_PERMANENT, [
+          'tmgmt_textmaster',
+        ]);
+      return $templates;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not get TextMaster API templates: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Function to get all pages result.
+   *
+   * @param string $request_path
+   *   Path for request.
+   * @param string $result_key
+   *   The array key for results.
+   * @param array $previous_pages_result
+   *   The array with previous pages values.
+   *
+   * @return array|int|null
+   *   Result of the API request.
+   */
+  public function allPagesResult($request_path, $result_key, array $previous_pages_result = []) {
+    $result = $this->sendApiRequest($request_path);
+    $all_pages_list = array_merge($result[$result_key], $previous_pages_result);
+    if (isset($result['next_page'])) {
+      return $this->allPagesResult($result['next_page'], $result_key, $all_pages_list);
+    }
+    return $all_pages_list;
+  }
+
+  /**
    * Finalizes TextMaster project.
    *
    * @param string $project_id
@@ -417,7 +495,13 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function finalizeTmProject($project_id) {
     try {
-      return $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+      $result_with_cost = $this->getTmProject($project_id);
+      if (!empty($currency = $result_with_cost['total_costs'][0]['currency']) && !empty($amount = $result_with_cost['total_costs'][0]['amount'])) {
+        // TODO: Set the project cost here.
+        $stop = [];
+      }
+      return $result;
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
@@ -496,7 +580,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'file_name' => $file_name,
       'hashed_payload' => $file_hash,
     ];
-    $upload_properties = $this->sendApiRequest('v1/clients/s3_upload_properties.json', 'POST', $params, FALSE, FALSE, NULL);
+    $upload_properties = $this->sendApiRequest('v1/clients/s3_upload_properties.json', 'POST', $params);
     if (!isset($upload_properties['url']) || !isset($upload_properties['headers'])) {
       throw new TMGMTException('Could not obtain upload properties from TextMaster API');
     }
@@ -535,7 +619,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'perform_word_count' => 'true',
       ],
     ];
-    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params, FALSE, FALSE);
+    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params);
 
     return $result['id'];
   }
@@ -713,7 +797,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function addTranslationToJob(JobInterface $job, $document_state, $project_id, $document_id, $remote_file_url) {
     $translated_file_response = $this->client->request('GET', $remote_file_url);
-    $translated_file_content = $translated_file_response->getBody()->getContents();
+    $translated_file_content = $translated_file_response->getBody()
+      ->getContents();
     $file_data = $this->parseTranslationData($translated_file_content);
     if ($this->remoteTranslationCompleted($document_state)) {
       $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;

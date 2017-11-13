@@ -99,11 +99,11 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     }
 
     // Project Templates.
-    $templates_json = $translator_plugin->sendApiRequest('v1/clients/api_templates');
+    $templates_json = $translator_plugin->getTmApiTemplates();
     $sourceLang = $job->getRemoteSourceLanguage();
     $targetLang = $job->getRemoteTargetLanguage();
     $templates = [];
-    foreach ($templates_json['api_templates'] as $template) {
+    foreach ($templates_json as $template) {
       // Display only templates which match the selected source & target langs.
       if ($template['language_from'] === $sourceLang && $targetLang === $template['language_to']) {
         $templates[$template['id']] = $template['name'];

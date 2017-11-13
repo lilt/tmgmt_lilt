@@ -9,34 +9,58 @@ use \Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Url;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
 use Drupal\Core\Database\Database;
+use Drupal\tmgmt\Entity\Job;
+use Drupal\tmgmt\Entity\JobItem;
 
 /**
  * Implements hook_entity_operation().
  */
 function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
-  if ($entity->bundle() != 'tmgmt_job'
-    || !$entity->hasTranslator()
-    || $entity->getTranslatorId() != 'textmaster'
+
+  /** @var Drupal\tmgmt\Entity\Job $entity */
+  if ($entity->bundle() == 'tmgmt_job'
+    && $entity->hasTranslator()
+    && $entity->getTranslatorId() == 'textmaster'
   ) {
-    return;
+    $project_id = tmgmt_textmaster_get_project_by_job_id($entity->id());
+    if (!$project_id) {
+      return;
+    }
+
+    $operations['view_on_tm'] = array(
+      'url' => Url::fromUri('https://www.app.textmaster.com/clients/projects/' . $project_id),
+      'title' => t('View on TextMaster'),
+      'weight' => 10,
+    );
+    $job_remote_data = end($entity->getRemoteMappings());
+    $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
+    if ($entity->isState(Job::STATE_UNPROCESSED) && !$auto_launch) {
+      $operations['launch'] = array(
+        'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
+        'title' => t('Launch'),
+        'weight' => 10,
+      );
+    }
+    return $operations;
   }
-  $project_id = tmgmt_textmaster_get_project_by_job_id($entity->id());
-  if (!$project_id) {
-    return;
+  /** @var Drupal\tmgmt\Entity\JobItem $entity */
+  if ($entity->bundle() == 'tmgmt_job_item') {
+    // Get the mapping only for the last created Project.
+    $remote_mapping = end($entity->getRemoteMappings());
+    $module_name = $remote_mapping->remote_identifier_1->value;
+    $document_id = $remote_mapping->remote_identifier_3->value;
+    $project_id = $remote_mapping->remote_identifier_2->value;
+    if (!$project_id || $module_name != 'tmgmt_textmaster') {
+      return;
+    }
+    $operations['view_on_tm'] = array(
+      'url' => Url::fromUri('https://www.app.textmaster.com/clients/projects/' . $project_id . '/documents/' . $document_id),
+      'title' => t('View on TextMaster'),
+      'weight' => 10,
+    );
+    return $operations;
   }
 
-  $operations['view_on_tm'] = array(
-    'url' => Url::fromUri('https://www.app.textmaster.com/clients/projects/' . $project_id),
-    'title' => t('View on TextMaster'),
-    'weight' => 10,
-  );
-  if ($entity)
-  $operations['launch'] = array(
-    'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
-    'title' => t('Launch'),
-    'weight' => 10,
-  );
-  return $operations;
 }
 
 /**
