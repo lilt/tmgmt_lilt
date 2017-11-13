@@ -1,0 +1,50 @@
+sonar:
+  stage: test
+  script:
+    - sonar-scanner -Dsonar.host.url=http://sonar.adyax-dev.com -Dsonar.analysis.mode=preview -Dsonar.issuesReport.console.enable=true -Dsonar.gitlab.commit_sha=$CI_BUILD_REF -Dsonar.gitlab.ref=$CI_BUILD_REF_NAME
+  only:
+    - branches
+  except:
+    - develop
+
+review_code:
+  stage: test
+  # Select image from https://hub.docker.com/_/php/
+  image: php:7.1
+  tags:
+    - docker
+  # Select what we should cache
+  cache:
+      paths:
+      - vendor/
+      - docroot/modules/contrib/
+      - bin/
+      - ~/.composer/
+  before_script:
+    # Install all project dependencies
+    - export COMPOSER_DISCARD_CHANGES=true
+    # Install git, the php image doesn't have installed
+    - apt-get update -yqq
+    # install zip
+    - apt-get -yqq install git unzip > /dev/null
+
+    # copy of php.ini
+    - touch /usr/local/etc/php/php.ini
+
+    # Install composer
+    - curl -sS https://getcomposer.org/installer | php
+    - php composer.phar global require squizlabs/php_codesniffer 2.*
+    - php composer.phar global require drupal/coder 8.2.*
+    - ln -s ~/composer
+    #- composer install --prefer-dist
+    - ln -s ~/.composer/vendor/drupal/coder/coder_sniffer/Drupal ~/.composer/vendor/squizlabs/php_codesniffer/CodeSniffer/Standards/Drupal
+    - ln -s ~/.composer/vendor/drupal/coder/coder_sniffer/DrupalPractice ~/.composer/vendor/squizlabs/php_codesniffer/CodeSniffer/Standards/DrupalPractice
+  script:
+    - echo "Review module,php,install,js for Drupal standards"
+    # - composer install
+    -  ~/.composer/vendor/bin/phpcs --colors --standard=DrupalPractice --encoding=utf-8 -p --extensions=module/php,php,install/php,js,yml ./
+    -  ~/.composer/vendor/bin/phpcs --colors --standard=Drupal --encoding=utf-8 -p --extensions=module/php,php,install/php,js ./
+  only:
+    - branches
+  except:
+    - develop

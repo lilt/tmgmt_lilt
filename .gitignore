@@ -1,0 +1,14 @@
+# Ignore configuration files that may contain sensitive information.
+.idea
+.vagrant
+
+# OS specific mess.
+Thumbs.db
+.DS_Store
+
+#eclipse
+.project
+.buildpath
+
+#NetBeans
+nbproject
