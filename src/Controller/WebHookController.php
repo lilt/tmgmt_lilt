@@ -96,8 +96,6 @@ class WebHookController extends ControllerBase {
           $translator_plugin->addFileDataToJob($remote->getJob(), $status, $project_id, $job_part_id);
         }
         catch (TMGMTException $e) {
-          $restart_point = $status == 'TranslatableReviewPreview' ? 'RestartPoint01' : 'RestartPoint02';
-          $translator_plugin->sendFileError($restart_point, $project_id, $job_part_id, $job_item->getJob(), $remote->getRemoteData('RequiredBy'), $e->getMessage(), TRUE);
           $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
         }
       }

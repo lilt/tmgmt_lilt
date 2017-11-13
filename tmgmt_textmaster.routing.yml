@@ -13,3 +13,11 @@ tmgmt_textmaster.callback:
 #    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::pullAllRemoteTranslations'
 #  requirements:
 #    _permission: 'administer tmgmt+accept translation jobs'
+
+tmgmt_textmaster.launch:
+  path: '/admin/tmgmt/jobs/{tm_job_id}/{tm_project_id}/launch'
+  defaults:
+    _controller: '\Drupal\tmgmt_textmaster\Controller\TextmasterProjectController::launchProject'
+    _title: 'Launch'
+  requirements:
+    _permission: 'administer tmgmt+accept translation jobs'
