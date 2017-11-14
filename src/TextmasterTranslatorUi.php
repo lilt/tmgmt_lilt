@@ -23,7 +23,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
-    $tm_api_key_url = Url::fromUri(self::TEXTMASTER_APPLICATION_URL . '/clients/api_info')->toString();
+    $tm_api_key_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/api_info')->toString();
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
@@ -88,7 +88,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     // Account Credits.
     $account_info = $translator_plugin->getTmAccountInfo();
     if (!empty($account_info['wallet'])) {
-      $buy_credits_url = Url::fromUri(self::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new');
+      $buy_credits_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new');
       $settings['account_credits'] = [
         '#type' => 'item',
         '#title' => t('Available credits: @current_money @currency_code', [
@@ -116,7 +116,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
         '#type' => 'item',
         '#title' => t('No project template?'),
         '#markup' => t('The project template is required. You can create one <a href=:template_url>here</a>', [
-          ':template_url' => Url::fromUri(self::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')
+          ':template_url' => Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')
             ->toString(),
         ]),
       ];
