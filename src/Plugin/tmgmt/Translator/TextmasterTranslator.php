@@ -11,6 +11,7 @@ use Drupal\tmgmt\TMGMTException;
 use Drupal\tmgmt\Translator\AvailableResult;
 use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt\TranslatorPluginBase;
+use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -124,8 +125,16 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function requestTranslation(JobInterface $job) {
     $job = $this->requestJobItemsTranslation($job->getItems());
-    if (!$job->isRejected()) {
+    if ($job->isRejected()) {
+      return;
+    }
+    $job_remote_data = end($job->getRemoteMappings());
+    $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
+    if ($auto_launch) {
       $job->submitted();
+    }
+    else {
+      $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
     }
   }
 
@@ -140,7 +149,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       $job->setState(Job::STATE_UNPROCESSED);
     }
     $this->setTranslator($job->getTranslator());
-    $project_id = 0;
     $due_date = $job->getSetting('deadline');
     try {
       $project_id = $this->createTmProject($job, $due_date);
@@ -159,8 +167,9 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           'remote_identifier_3' => $document_id,
           'remote_data' => [
             'FileStateVersion' => 1,
-            'TmsState' => 'TranslatableSource',
+            'TMState' => 'in_creation',
             'RequiredBy' => $due_date,
+            'TemplateAutoLaunch' => $this->isTemplateAutoLaunch($job->getSetting('project_template')),
           ],
         ]);
         $remote_mapping->save();
@@ -407,14 +416,98 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
+   * Function to check if api template "auto_launch" parameter is set TRUE.
+   *
+   * @param string $api_template_id
+   *   The ID of TextMaster API template.
+   *
+   * @return bool
+   *   True if template auto_launch parameter is set to true.
+   */
+  public function isTemplateAutoLaunch($api_template_id) {
+    $templates = $this->getTmApiTemplates();
+    foreach ($templates as $template) {
+      if ($template['id'] === $api_template_id) {
+        return $template['auto_launch'];
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Get TextMaster API templates.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function getTmApiTemplates() {
+    $cache = \Drupal::cache()
+      ->get('tmgmt_textmaster_api_templates');
+    if (!empty($cache)) {
+      return $cache->data;
+    }
+
+    try {
+      $templates = $this->allPagesResult('v1/clients/api_templates', 'api_templates');
+      \Drupal::cache()
+        ->set('tmgmt_textmaster_api_templates', $templates, CacheBackendInterface::CACHE_PERMANENT, [
+          'tmgmt_textmaster',
+        ]);
+      return $templates;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not get TextMaster API templates: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Function to get all pages result.
+   *
+   * @param string $request_path
+   *   Path for request.
+   * @param string $result_key
+   *   The array key for results.
+   * @param array $previous_pages_result
+   *   The array with previous pages values.
+   *
+   * @return array|int|null
+   *   Result of the API request.
+   */
+  public function allPagesResult($request_path, $result_key, array $previous_pages_result = []) {
+    $result = $this->sendApiRequest($request_path);
+    $all_pages_list = array_merge($result[$result_key], $previous_pages_result);
+    if (isset($result['next_page'])) {
+      return $this->allPagesResult($result['next_page'], $result_key, $all_pages_list);
+    }
+    return $all_pages_list;
+  }
+
+  /**
    * Finalizes TextMaster project.
    *
    * @param string $project_id
    *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
    */
   public function finalizeTmProject($project_id) {
-    // TODO: check why this returns error.
-    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+    try {
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+      $result_with_cost = $this->getTmProject($project_id);
+      if (!empty($currency = $result_with_cost['total_costs'][0]['currency']) && !empty($amount = $result_with_cost['total_costs'][0]['amount'])) {
+        // TODO: Set the project cost here.
+        $stop = [];
+      }
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not get the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
   }
 
   /**
@@ -449,7 +542,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   TextMaster Document Id.
    */
   private function sendFiles(JobItemInterface $job_item, $project_id) {
-    // Prepare parameters for Job API.
     /** @var \Drupal\tmgmt_file\Format\FormatInterface $xliff_converter */
     $xliff_converter = \Drupal::service('plugin.manager.tmgmt_file.format')
       ->createInstance('xlf');
@@ -488,7 +580,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'file_name' => $file_name,
       'hashed_payload' => $file_hash,
     ];
-    $upload_properties = $this->sendApiRequest('v1/clients/s3_upload_properties.json', 'POST', $params, FALSE, FALSE, NULL);
+    $upload_properties = $this->sendApiRequest('v1/clients/s3_upload_properties.json', 'POST', $params);
     if (!isset($upload_properties['url']) || !isset($upload_properties['headers'])) {
       throw new TMGMTException('Could not obtain upload properties from TextMaster API');
     }
@@ -527,7 +619,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'perform_word_count' => 'true',
       ],
     ];
-    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params, FALSE, FALSE);
+    $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params);
 
     return $result['id'];
   }
@@ -561,7 +653,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   number that has not been translated yet.
    */
   public function fetchTranslatedFiles(JobInterface $job) {
-    // TODO: correct this method or remove it.
     $this->setTranslator($job->getTranslator());
     $translated = 0;
     $errors = [];
@@ -573,29 +664,26 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
         foreach ($mappings as $mapping) {
           // Prepare parameters for Job API (to get the job status).
-          $job_part_id = $mapping->getRemoteIdentifier3();
+          $document_id = $mapping->getRemoteIdentifier3();
           $project_id = $mapping->getRemoteIdentifier2();
-          $old_state = $mapping->getRemoteData('TmsState');
-          $params = [
-            'jobPart' => $job_part_id,
-          ];
+          $old_state = $mapping->getRemoteData('TMState');
           $info = [];
           try {
-            $info = $this->sendApiRequest('v8/job/get', 'GET', $params);
+            $info = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
           }
           catch (TMGMTException $e) {
-            $job->addMessage('Error fetching the job item: @job_item. TextMaster job @job_part_id not found.',
+            $job->addMessage('Error fetching the job item: @job_item. TextMaster document @document_id not found.',
               [
                 '@job_item' => $job_item->label(),
-                '@job_part_id' => $job_part_id,
+                '@document_id' => $document_id,
               ], 'error');
-            $errors[] = 'TextMaster job ' . $job_part_id . ' not found, it was probably deleted.';
+            $errors[] = 'TextMaster job ' . $document_id . ' not found, it was probably deleted.';
           }
 
           if (array_key_exists('status', $info)) {
             if ($this->remoteTranslationCompleted($info['status'])) {
               try {
-                $this->addFileDataToJob($job, $info['status'], $project_id, $job_part_id);
+                $this->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
                 $translated++;
               }
               catch (TMGMTException $e) {
@@ -635,13 +723,13 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
     $remote = reset($remotes);
     $params = [
-      'jobPart' => $remote->getRemoteIdentifier3(),
+      'document' => $remote->getRemoteIdentifier3(),
     ];
     $info = $this->sendApiRequest('v8/job/get', 'GET', $params);
     $old_state = $remote->getRemoteData('TmsState');
     if ($this->remoteTranslationCompleted($info['status'])) {
       try {
-        $this->addFileDataToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3());
+        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3());
         return 1;
       }
       catch (TMGMTException $e) {
@@ -664,8 +752,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   True if completed.
    */
   public function remoteTranslationCompleted($status) {
-    // TODO: correct this method or remove it.
-    return $status == 'COMPLETED_BY_LINGUIST' || $status == 'COMPLETED';
+    return $status == 'in_review' || $status == 'completed';
   }
 
   /**
@@ -699,7 +786,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @param \Drupal\tmgmt\JobInterface $job
    *   The Job to which will be added the data.
-   * @param string $state
+   * @param string $document_state
    *   The state of the file.
    * @param int $project_id
    *   The project ID.
@@ -708,26 +795,23 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function addFileDataToJob(JobInterface $job, $state, $project_id, $file_id) {
-    // TODO: correct this method or remove it.
-    $params = [
-      'jobPart' => $file_id,
-    ];
-    $data = $this->sendApiRequest('v8/job/getCompletedFile', 'GET', $params, TRUE);
-    $decoded_data = $data;
-    $file_data = $this->parseTranslationData($decoded_data);
-    if ($this->remoteTranslationCompleted($state)) {
+  public function addTranslationToJob(JobInterface $job, $document_state, $project_id, $document_id, $remote_file_url) {
+    $translated_file_response = $this->client->request('GET', $remote_file_url);
+    $translated_file_content = $translated_file_response->getBody()
+      ->getContents();
+    $file_data = $this->parseTranslationData($translated_file_content);
+    if ($this->remoteTranslationCompleted($document_state)) {
       $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;
     }
     else {
       $status = TMGMT_DATA_ITEM_STATE_PRELIMINARY;
     }
     $job->addTranslatedData($file_data, [], $status);
-    $mappings = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id, $file_id);
+    $mappings = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id, $document_id);
     /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
     $mapping = reset($mappings);
-    $mapping->removeRemoteData('TmsState');
-    $mapping->addRemoteData('TmsState', $state);
+    $mapping->removeRemoteData('TMState');
+    $mapping->addRemoteData('TMState', $document_state);
     $mapping->save();
   }
 

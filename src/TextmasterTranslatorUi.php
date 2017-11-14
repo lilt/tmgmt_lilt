@@ -89,20 +89,21 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       $buy_credits_url = Url::fromUri('https://www.app.textmaster.com/clients/payment_requests/new');
       $settings['account_credits'] = [
         '#type' => 'item',
-        '#title' => t(' Available credits: @current_money @currency_code', [
+        '#title' => t('Available credits: @current_money @currency_code', [
           '@current_money' => $account_info['wallet']['current_money'],
           '@currency_code' => $account_info['wallet']['currency_code'],
         ]),
-        '#markup' => Link::fromTextAndUrl(t('Buy credits on TextMaster'), $buy_credits_url)->toString(),
+        '#markup' => Link::fromTextAndUrl(t('Buy credits on TextMaster'), $buy_credits_url)
+          ->toString(),
       ];
     }
 
     // Project Templates.
-    $templates_json = $translator_plugin->sendApiRequest('v1/clients/api_templates');
+    $templates_json = $translator_plugin->getTmApiTemplates();
     $sourceLang = $job->getRemoteSourceLanguage();
     $targetLang = $job->getRemoteTargetLanguage();
     $templates = [];
-    foreach ($templates_json['api_templates'] as $template) {
+    foreach ($templates_json as $template) {
       // Display only templates which match the selected source & target langs.
       if ($template['language_from'] === $sourceLang && $targetLang === $template['language_to']) {
         $templates[$template['id']] = $template['name'];
@@ -175,7 +176,6 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    * Submit callback to pull translations form TextMaster.
    */
   public function submitPullTranslations(array $form, FormStateInterface $form_state) {
-    // TODO: needs work.
     /** @var \Drupal\tmgmt\Entity\Job $job */
     $job = $form_state->getFormObject()->getEntity();
 
@@ -187,16 +187,16 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $errors = $result['errors'];
     if (count($errors) == 0) {
       if ($untranslated == 0 && $translated != 0) {
-        $job->addMessage('Fetched translations for @translated job items.', ['@translated' => $translated]);
+        $job->addMessage(t('Fetched translations for @translated job items.', ['@translated' => $translated]));
       }
       elseif ($translated == 0) {
-        drupal_set_message('No job item has been translated yet.');
+        drupal_set_message(t('No job item has been translated yet.'));
       }
       else {
-        $job->addMessage('Fetched translations for @translated job items, @untranslated are not translated yet.', [
+        $job->addMessage(t('Fetched translations for @translated job items, @untranslated are not translated yet.', [
           '@translated' => $translated,
           '@untranslated' => $untranslated,
-        ]);
+        ]));
       }
     }
     tmgmt_write_request_messages($job);

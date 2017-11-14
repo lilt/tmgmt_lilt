@@ -44,9 +44,8 @@ class TextmasterProjectController extends ControllerBase {
       return $this->redirectToJobsList($message, 'error');
     }
     $translator_plugin->sendApiRequest('/v1/clients/projects/' . $tm_project_id . '/launch', 'PUT');
-
     $message = $this->t('The TextMaster project @project_id was successfully launched', ['@project_id' => $tm_project_id]);
-    $job->addMessage($message);
+    $job->setState(Job::STATE_ACTIVE, $message);
     return $this->redirectToJobsList($message);
   }
 
