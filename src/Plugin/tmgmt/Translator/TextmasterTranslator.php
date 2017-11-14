@@ -355,11 +355,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 <li>Response: %response</li>
             </ul>
             ', [
-            '%method' => $method,
-            '%url' => $url,
-            '%request' => $e->getRequest()->getBody()->getContents(),
-            '%response' => $response->getBody()->getContents(),
-          ]
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => $e->getRequest()->getBody()->getContents(),
+              '%response' => $response->getBody()->getContents(),
+            ]
         );
       }
       if ($code) {
@@ -375,11 +375,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 <li>Response: %response</li>
             </ul>
             ', [
-          '%method' => $method,
-          '%url' => $url,
-          '%request' => json_encode($options),
-          '%response' => $received_data,
-        ]
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => json_encode($options),
+              '%response' => $received_data,
+            ]
       );
     }
     if ($code) {
@@ -840,8 +840,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   The state of the file.
    * @param int $project_id
    *   The project ID.
-   * @param string $file_id
-   *   The file ID.
+   * @param string $document_id
+   *   The Document ID.
+   * @param string $remote_file_url
+   *   Translated file url.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
@@ -885,7 +887,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * Get gmt/utc date in format 'Y-m-d H:i:s'.
    *
    * @return string
-   *    Date gmt/utc in format 'Y-m-d H:i:s'.
+   *   Date gmt/utc in format 'Y-m-d H:i:s'.
    */
   public function utcDate() {
     return gmdate('Y-m-d H:i:s');

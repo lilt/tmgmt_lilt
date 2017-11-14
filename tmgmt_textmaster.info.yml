@@ -6,5 +6,4 @@ dependencies:
   - tmgmt:tmgmt
   - tmgmt:tmgmt_file
 configure: entity.tmgmt_translator.collection
-version: '8.x-0.1'
 core: '8.x'
