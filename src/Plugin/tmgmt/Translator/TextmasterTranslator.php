@@ -178,7 +178,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           $job_item->active();
         }
       }
-      // TODO: add this step after fixing.
       $this->finalizeTmProject($project_id);
     }
     catch (TMGMTException $e) {
@@ -189,6 +188,21 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     return $job;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function abortTranslation(JobInterface $job) {
+    // Assume that we can abort a translation job at any time.
+    // TODO add the check of job state here. Cannot cancel translated project.
+    $mapping = end($job->getRemoteMappings());
+    $project_id = $mapping->remote_identifier_2->value;
+    if (!$this->pauseTmProject($project_id) || !$this->cancelTmProject($project_id)) {
+      return FALSE;
+    }
+    $job->aborted();
+    return TRUE;
   }
 
   /**
@@ -315,9 +329,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     }
 
     // Default headers for TextMaster Api requests.
+    $date = $this->utcDate();
     $options['headers'] = [
       'Apikey' => $this->translator->getSetting('textmaster_api_key'),
-      'Date' => $date = $this->utcDate(),
+      'Date' => $date,
       'Signature' => $this->getTextmasterSignature($date, $this->translator->getSetting('textmaster_api_secret')),
       'Content-Type' => 'application/json',
     ];
@@ -340,11 +355,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 <li>Response: %response</li>
             </ul>
             ', [
-            '%method' => $method,
-            '%url' => $url,
-            '%request' => $e->getRequest()->getBody()->getContents(),
-            '%response' => $response->getBody()->getContents(),
-          ]
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => $e->getRequest()->getBody()->getContents(),
+              '%response' => $response->getBody()->getContents(),
+            ]
         );
       }
       if ($code) {
@@ -360,11 +375,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 <li>Response: %response</li>
             </ul>
             ', [
-          '%method' => $method,
-          '%url' => $url,
-          '%request' => json_encode($options),
-          '%response' => $received_data,
-        ]
+              '%method' => $method,
+              '%url' => $url,
+              '%request' => json_encode($options),
+              '%response' => $received_data,
+            ]
       );
     }
     if ($code) {
@@ -496,16 +511,53 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   public function finalizeTmProject($project_id) {
     try {
       $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
-      $result_with_cost = $this->getTmProject($project_id);
-      if (!empty($currency = $result_with_cost['total_costs'][0]['currency']) && !empty($amount = $result_with_cost['total_costs'][0]['amount'])) {
-        // TODO: Set the project cost here.
-        $stop = [];
-      }
       return $result;
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
         ->error('Could not get the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Cancel TextMaster project.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function cancelTmProject($project_id) {
+    try {
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/cancel', 'PUT', []);
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not cancel the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Pause TextMaster project.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function pauseTmProject($project_id) {
+    try {
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/pause', 'PUT', []);
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not pause the TextMaster Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
   }
@@ -666,7 +718,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           // Prepare parameters for Job API (to get the job status).
           $document_id = $mapping->getRemoteIdentifier3();
           $project_id = $mapping->getRemoteIdentifier2();
-          $old_state = $mapping->getRemoteData('TMState');
           $info = [];
           try {
             $info = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
@@ -677,7 +728,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 '@job_item' => $job_item->label(),
                 '@document_id' => $document_id,
               ], 'error');
-            $errors[] = 'TextMaster job ' . $document_id . ' not found, it was probably deleted.';
+            $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
           }
 
           if (array_key_exists('status', $info)) {
@@ -726,10 +777,9 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'document' => $remote->getRemoteIdentifier3(),
     ];
     $info = $this->sendApiRequest('v8/job/get', 'GET', $params);
-    $old_state = $remote->getRemoteData('TmsState');
     if ($this->remoteTranslationCompleted($info['status'])) {
       try {
-        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3());
+        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3(), $info['author_work']);
         return 1;
       }
       catch (TMGMTException $e) {
@@ -790,8 +840,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   The state of the file.
    * @param int $project_id
    *   The project ID.
-   * @param string $file_id
-   *   The file ID.
+   * @param string $document_id
+   *   The Document ID.
+   * @param string $remote_file_url
+   *   Translated file url.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
@@ -835,7 +887,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * Get gmt/utc date in format 'Y-m-d H:i:s'.
    *
    * @return string
-   *    Date gmt/utc in format 'Y-m-d H:i:s'.
+   *   Date gmt/utc in format 'Y-m-d H:i:s'.
    */
   public function utcDate() {
     return gmdate('Y-m-d H:i:s');

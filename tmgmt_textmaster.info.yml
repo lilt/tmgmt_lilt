@@ -3,8 +3,7 @@ type: module
 description: 'Localize Drupal websites with the help of professional translation tools.'
 package: Translation Management
 dependencies:
-  - tmgmt
-  - tmgmt_file
+  - tmgmt:tmgmt
+  - tmgmt:tmgmt_file
 configure: entity.tmgmt_translator.collection
-version: '8.x-0.1'
 core: '8.x'
