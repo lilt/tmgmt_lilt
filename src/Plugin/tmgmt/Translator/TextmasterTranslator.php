@@ -546,7 +546,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
-   * Cancel TextMaster project.
+   * Pause TextMaster project.
    *
    * @param string $project_id
    *   TextMaster project id.
@@ -733,7 +733,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
                 '@job_item' => $job_item->label(),
                 '@document_id' => $document_id,
               ], 'error');
-            $errors[] = 'TextMaster job ' . $document_id . ' not found, it was probably deleted.';
+            $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
           }
 
           if (array_key_exists('status', $info)) {
@@ -785,7 +785,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $old_state = $remote->getRemoteData('TmsState');
     if ($this->remoteTranslationCompleted($info['status'])) {
       try {
-        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3());
+        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3(), $info['author_work']);
         return 1;
       }
       catch (TMGMTException $e) {
