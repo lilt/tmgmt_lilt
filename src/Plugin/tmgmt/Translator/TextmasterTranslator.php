@@ -329,9 +329,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     }
 
     // Default headers for TextMaster Api requests.
+    $date = $this->utcDate();
     $options['headers'] = [
       'Apikey' => $this->translator->getSetting('textmaster_api_key'),
-      'Date' => $date = $this->utcDate(),
+      'Date' => $date,
       'Signature' => $this->getTextmasterSignature($date, $this->translator->getSetting('textmaster_api_secret')),
       'Content-Type' => 'application/json',
     ];
@@ -510,11 +511,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   public function finalizeTmProject($project_id) {
     try {
       $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
-      $result_with_cost = $this->getTmProject($project_id);
-      if (!empty($currency = $result_with_cost['total_costs'][0]['currency']) && !empty($amount = $result_with_cost['total_costs'][0]['amount'])) {
-        // TODO: Set the project cost here.
-        $stop = [];
-      }
       return $result;
     }
     catch (TMGMTException $e) {
@@ -722,7 +718,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           // Prepare parameters for Job API (to get the job status).
           $document_id = $mapping->getRemoteIdentifier3();
           $project_id = $mapping->getRemoteIdentifier2();
-          $old_state = $mapping->getRemoteData('TMState');
           $info = [];
           try {
             $info = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
@@ -782,7 +777,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'document' => $remote->getRemoteIdentifier3(),
     ];
     $info = $this->sendApiRequest('v8/job/get', 'GET', $params);
-    $old_state = $remote->getRemoteData('TmsState');
     if ($this->remoteTranslationCompleted($info['status'])) {
       try {
         $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3(), $info['author_work']);
