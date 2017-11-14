@@ -178,7 +178,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           $job_item->active();
         }
       }
-      // TODO: add this step after fixing.
       $this->finalizeTmProject($project_id);
     }
     catch (TMGMTException $e) {
@@ -189,6 +188,21 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     return $job;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function abortTranslation(JobInterface $job) {
+    // Assume that we can abort a translation job at any time.
+    // TODO add the check of job state here. Cannot cancel translated project.
+    $mapping = end($job->getRemoteMappings());
+    $project_id = $mapping->remote_identifier_2->value;
+    if (!$this->pauseTmProject($project_id) || !$this->cancelTmProject($project_id)) {
+      return FALSE;
+    }
+    $job->aborted();
+    return TRUE;
   }
 
   /**
@@ -506,6 +520,48 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
         ->error('Could not get the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Cancel TextMaster project.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function cancelTmProject($project_id) {
+    try {
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/cancel', 'PUT', []);
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not cancel the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Cancel TextMaster project.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function pauseTmProject($project_id) {
+    try {
+      $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/pause', 'PUT', []);
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not pause the TextMaster Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
   }
