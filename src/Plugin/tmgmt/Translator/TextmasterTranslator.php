@@ -195,12 +195,23 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function abortTranslation(JobInterface $job) {
     // Assume that we can abort a translation job at any time.
-    // TODO add the check of job state here. Cannot cancel translated project.
+    if (!$this->translator) {
+      $this->setTranslator($job->getTranslator());
+    }
     $mapping = end($job->getRemoteMappings());
     $project_id = $mapping->remote_identifier_2->value;
-    if (!$this->pauseTmProject($project_id) || !$this->cancelTmProject($project_id)) {
+    $project_info = $this->getTmProject($project_id);
+    if (!in_array($project_info['status'], ['in_creation', 'in_progress'])) {
+      $job->addMessage('Could not cancel the project "@job_title" with status "@status"', [
+        '@status' => $project_info['status'],
+        '@job_title' => $job->label(),
+      ]);
       return FALSE;
     }
+    if ($project_info['status'] != 'in_creation') {
+      $this->pauseTmProject($project_id);
+    }
+    $this->cancelTmProject($project_id);
     $job->aborted();
     return TRUE;
   }
