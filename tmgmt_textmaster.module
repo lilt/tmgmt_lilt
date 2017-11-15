@@ -83,3 +83,19 @@ function tmgmt_textmaster_get_project_by_job_id($job_id) {
     ->fetchAssoc();
   return (isset($result['remote_identifier_2'])) ? $result['remote_identifier_2'] : FALSE;
 }
+
+/**
+ * Implements hook_views_data_alter().
+ */
+function tmgmt_textmaster_views_data_alter(array &$data) {
+
+  $data['tmgmt_job']['tmgmt_textmaster_price'] = [
+    'title' => 'Project Price',
+    'help' => 'Displays a TextMaster price of the job.',
+    'real field' => 'settings',
+    'field' => [
+      'title' => t('Project Price'),
+      'id' => 'tmgmt_textmaster_price',
+    ],
+  ];
+}

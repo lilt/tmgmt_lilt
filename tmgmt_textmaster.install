@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for the tmgmt_textmaster module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function tmgmt_textmaster_install() {
+  $config = \Drupal::configFactory();
+  $view_config = $config->getEditable('views.view.tmgmt_job_overview');
+  $data = $view_config->getRawData();
+  $data['dependencies']['module'][] = 'tmgmt_textmaster';
+  $options = end($data['display']['default']['display_options']['fields']);
+  $options_key = key($data['display']['default']['display_options']['fields']);
+  unset($data['display']['default']['display_options']['fields'][$options_key]);
+  $data['display']['default']['display_options']['fields']['tmgmt_textmaster_price'] = [
+    'id' => 'tmgmt_textmaster_price',
+    'table' => 'tmgmt_job',
+    'field' => 'tmgmt_textmaster_price',
+    'entity_type' => 'tmgmt_job',
+    'plugin_id' => 'tmgmt_textmaster_price',
+  ];
+  $data['display']['default']['display_options']['fields'][$options_key] = $options;
+  $view_config->setData($data);
+  $view_config->save();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function tmgmt_textmaster_uninstall() {
+  $config = \Drupal::configFactory();
+  $view_config = $config->getEditable('views.view.tmgmt_job_overview');
+  $data = $view_config->getRawData();
+  foreach ($data['dependencies']['module'] as $key => $module) {
+    if ($module == 'tmgmt_textmaster') {
+      unset($data['dependencies']['module'][$key]);
+      break;
+    }
+  }
+  unset($data['display']['default']['display_options']['fields']['tmgmt_textmaster_price']);
+  $view_config->setData($data);
+  $view_config->save();
+}
