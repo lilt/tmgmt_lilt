@@ -152,6 +152,14 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#description' => t('Please note that TextMaster cannot guarantee this deadline; however, they will do their best to meet it.'),
       '#default_value' => $job->getSetting('deadline'),
     ];
+    // Project Price.
+    $settings['project_price'] = [
+      '#access' => FALSE,
+      '#type' => 'textfield',
+      '#title' => t('Project Price'),
+      '#description' => t('TextMaster Project price.'),
+      '#default_value' => $job->getSetting('project_price'),
+    ];
 
     return $settings;
   }

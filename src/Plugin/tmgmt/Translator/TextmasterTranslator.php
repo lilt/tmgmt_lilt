@@ -231,11 +231,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     catch (TMGMTException $ex) {
-      $config = \Drupal::configFactory()->get('tmgmt_textmaster.settings');
-      if ($config->get('debug')) {
-        \Drupal::logger('tmgmt_textmaster')
-          ->warning('Unable to log in to TextMaster API: ' . $ex->getMessage());
-      }
+      \Drupal::logger('tmgmt_textmaster')
+        ->warning('Unable to log in to TextMaster API: ' . $ex->getMessage());
     }
     return FALSE;
   }
@@ -317,13 +314,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       throw new TMGMTException('There is no Translator entity. Access to the TextMaster API is not possible.');
     }
     $service_url = $this->translator->getSetting('textmaster_service_url');
-    $config = \Drupal::configFactory()->get('tmgmt_textmaster.settings');
 
     if (!$service_url) {
-      if ($config->get('debug')) {
-        \Drupal::logger('tmgmt_textmaster')
-          ->warning('Attempt to call TextMaster API when service_url is not set: ' . $path);
-      }
+      \Drupal::logger('tmgmt_textmaster')
+        ->warning('Attempt to call TextMaster API when service_url is not set: ' . $path);
       return [];
     }
     $url = $service_url . '/' . $path;
@@ -359,40 +353,36 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         throw new TMGMTException('Unable to connect to TextMaster API due to following error: @error', ['@error' => $e->getMessage()], $e->getCode());
       }
       $response = $e->getResponse();
-      if ($config->get('debug')) {
-        \Drupal::logger('tmgmt_textmaster')->error('%method Request to %url:<br>
-            <ul>
-                <li>Request: %request</li>
-                <li>Response: %response</li>
-            </ul>
-            ', [
-              '%method' => $method,
-              '%url' => $url,
-              '%request' => $e->getRequest()->getBody()->getContents(),
-              '%response' => $response->getBody()->getContents(),
-            ]
-        );
-      }
+      \Drupal::logger('tmgmt_textmaster')->error('%method Request to %url:<br>
+          <ul>
+              <li>Request: %request</li>
+              <li>Response: %response</li>
+          </ul>
+          ', [
+            '%method' => $method,
+            '%url' => $url,
+            '%request' => $e->getRequest()->getBody()->getContents(),
+            '%response' => $response->getBody()->getContents(),
+          ]
+      );
       if ($code) {
         return $response->getStatusCode();
       }
       throw new TMGMTException('Unable to connect to TextMaster API due to following error: @error', ['@error' => $response->getReasonPhrase()], $response->getStatusCode());
     }
     $received_data = $response->getBody()->getContents();
-    if ($config->get('debug')) {
-      \Drupal::logger('tmgmt_textmaster')->debug('%method Request to %url:<br>
-            <ul>
-                <li>Request: %request</li>
-                <li>Response: %response</li>
-            </ul>
-            ', [
-              '%method' => $method,
-              '%url' => $url,
-              '%request' => json_encode($options),
-              '%response' => $received_data,
-            ]
-      );
-    }
+    \Drupal::logger('tmgmt_textmaster')->debug('%method Request to %url:<br>
+          <ul>
+              <li>Request: %request</li>
+              <li>Response: %response</li>
+          </ul>
+          ', [
+            '%method' => $method,
+            '%url' => $url,
+            '%request' => json_encode($options),
+            '%response' => $received_data,
+          ]
+    );
     if ($code) {
       return $response->getStatusCode();
     }
