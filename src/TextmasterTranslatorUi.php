@@ -130,28 +130,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#required' => TRUE,
       '#default_value' => $job->getSetting('project_template'),
     ];
-    // Project Categories.
-    $tm_categories_json = $translator_plugin->sendApiRequest('v1/public/categories');
-    $categories = [];
-    foreach ($tm_categories_json['categories'] as $category) {
-      $categories[$category['code']] = $category['value'];
-    }
-    $settings['category'] = [
-      '#type' => 'select',
-      '#title' => t('Project category'),
-      '#options' => $categories,
-      '#description' => t('Select a TextMaster project category.'),
-      '#required' => TRUE,
-      '#default_value' => $job->getSetting('category'),
-    ];
-    // Project Deadline.
-    $settings['deadline'] = [
-      '#type' => 'date',
-      '#title' => t('Delivery date'),
-      '#date_date_format' => 'Y-m-d',
-      '#description' => t('Please note that TextMaster cannot guarantee this deadline; however, they will do their best to meet it.'),
-      '#default_value' => $job->getSetting('deadline'),
-    ];
+
     // Project Price.
     $settings['project_price'] = [
       '#access' => FALSE,

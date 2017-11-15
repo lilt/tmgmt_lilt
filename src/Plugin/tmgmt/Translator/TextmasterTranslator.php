@@ -149,9 +149,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       $job->setState(Job::STATE_UNPROCESSED);
     }
     $this->setTranslator($job->getTranslator());
-    $due_date = $job->getSetting('deadline');
     try {
-      $project_id = $this->createTmProject($job, $due_date);
+      $project_id = $this->createTmProject($job);
       $job->addMessage('Created a new project in TextMaster with the id: @id', ['@id' => $project_id], 'debug');
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
@@ -168,7 +167,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           'remote_data' => [
             'FileStateVersion' => 1,
             'TMState' => 'in_creation',
-            'RequiredBy' => $due_date,
             'TemplateAutoLaunch' => $this->isTemplateAutoLaunch($job->getSetting('project_template')),
           ],
         ]);
@@ -406,15 +404,13 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @param \Drupal\tmgmt\JobInterface $job
    *   The job.
-   * @param string $due_date
-   *   The date by when the translation is required.
    *
    * @return int
    *   TextMaster Project ID.
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function createTmProject(JobInterface $job, $due_date) {
+  public function createTmProject(JobInterface $job) {
     // Prepare parameters for Project API.
     $name = $job->get('label')->value ?: 'Drupal TMGMT project ' . $job->id();
     $params = [
@@ -422,8 +418,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'name' => $name,
         'activity_name' => 'translation',
         'api_template_id' => $job->getSetting('project_template'),
-        'category' => $job->getSetting('category'),
-        'deadline' => $due_date,
+        'category' => 'C033',
       ],
     ];
     $result = $this->sendApiRequest('v1/clients/projects', 'POST', $params);
