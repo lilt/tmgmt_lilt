@@ -764,41 +764,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
-   * Retrieve all the updates for all the job items in a translator.
-   *
-   * @param \Drupal\tmgmt\JobItemInterface $job_item
-   *   The job item to get the translation.
-   *
-   * @return int
-   *   The number of updated job items.
-   */
-  public function pullRemoteTranslation(JobItemInterface $job_item) {
-    // TODO: correct this method or remove it.
-    $job = $job_item->getJob();
-    $this->setTranslator($job->getTranslator());
-    $remotes = RemoteMapping::loadByLocalData($job->id(), $job_item->id());
-    /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
-    $remote = reset($remotes);
-    $params = [
-      'document' => $remote->getRemoteIdentifier3(),
-    ];
-    $info = $this->sendApiRequest('v8/job/get', 'GET', $params);
-    if ($this->remoteTranslationCompleted($info['status'])) {
-      try {
-        $this->addTranslationToJob($job, $info['status'], $remote->getRemoteIdentifier2(), $remote->getRemoteIdentifier3(), $info['author_work']);
-        return 1;
-      }
-      catch (TMGMTException $e) {
-        $job->addMessage('Error fetching the job item: @job_item.', [
-          '@job_item' => $remote->getJobItem()
-            ->label(),
-        ], 'error');
-      }
-    }
-    return 0;
-  }
-
-  /**
    * Checks if the translation has one of the completed statuses.
    *
    * @param string $status
