@@ -737,16 +737,16 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
             $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
           }
 
-          if (array_key_exists('status', $info)) {
-            if ($this->remoteTranslationCompleted($info['status'])) {
-              try {
-                $this->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
-                $translated++;
-              }
-              catch (TMGMTException $e) {
-                $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
-                continue;
-              }
+          if (array_key_exists('status', $info)
+            && $this->remoteTranslationCompleted($info['status'])
+          ) {
+            try {
+              $this->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
+              $translated++;
+            }
+            catch (TMGMTException $e) {
+              $job->addMessage('Error fetching the job item: @job_item.', ['@job_item' => $job_item->label()], 'error');
+              continue;
             }
           }
         }
