@@ -1,19 +1,11 @@
-#tmgmt_textmaster.callback:
-#  path: /tmgmt_textmaster_callback
-#  defaults:
-#    _title: 'Remote Callback'
-#    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::callback'
-#  requirements:
-## Allow access for TextMaster API.
-#    _access: 'TRUE'
-#
-#tmgmt_textmaster.pull_all_remote_translations:
-#  path: /pull_all_remote_translations
-#  defaults:
-#    _title: 'Pull all remote translations'
-#    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::pullAllRemoteTranslations'
-#  requirements:
-#    _permission: 'administer tmgmt+accept translation jobs'
+tmgmt_textmaster.callback:
+  path: /tmgmt_textmaster_callback
+  defaults:
+    _title: 'Remote Callback'
+    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::callback'
+  requirements:
+# Allow access for TextMaster API.
+    _access: 'TRUE'
 
 tmgmt_textmaster.launch:
   path: '/admin/tmgmt/jobs/{tm_job_id}/{tm_project_id}/launch'
