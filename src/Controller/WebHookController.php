@@ -35,7 +35,7 @@ class WebHookController extends ControllerBase {
       $remote_file_url = $json_content->author_work;
       if (!isset($project_id) || !isset($document_id) || !isset($status) || !isset($remote_file_url)) {
         $logger->warning('Could not find TextMaster project id, document id, status or translated file url in callback request.');
-        return new Response();
+        return new Response('Could not get TextMaster project id, document id, status or translated file url from request.');
       }
       // Get mappings between the job items and project Document IDs.
       $remotes = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id);
