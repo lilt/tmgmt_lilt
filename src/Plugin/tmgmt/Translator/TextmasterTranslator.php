@@ -3,8 +3,10 @@
 namespace Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator;
 
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Url;
 use Drupal\tmgmt\ContinuousTranslatorInterface;
 use Drupal\tmgmt\Entity\RemoteMapping;
+use Drupal\tmgmt\Entity\Job;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TMGMTException;
@@ -15,7 +17,6 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\tmgmt\Entity\Job;
 
 /**
  * TextMaster translation plugin controller.
@@ -166,7 +167,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           'remote_identifier_3' => $document_id,
           'remote_data' => [
             'FileStateVersion' => 1,
-            'TMState' => 'in_creation',
+            'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
             'TemplateAutoLaunch' => $this->isTemplateAutoLaunch($job->getSetting('project_template')),
           ],
         ]);
@@ -659,12 +660,21 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   TextMaster Document ID.
    */
   public function createTmDocument($project_id, $remote_file_url, $document_title) {
+    $callback_url = Url::fromRoute('tmgmt_textmaster.callback')
+      ->setAbsolute()
+      ->toString();
     $params = [
       'document' => [
         'title' => $document_title,
         'remote_file_url' => $remote_file_url,
         'deliver_work_as_file' => 'true',
         'perform_word_count' => 'true',
+        'callback' => [
+          'in_review' => [
+            "url" => $callback_url,
+            "format" => "json",
+          ],
+        ],
       ],
     ];
     $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params);
@@ -859,7 +869,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
     $mapping = reset($mappings);
     $mapping->removeRemoteData('TMState');
-    $mapping->addRemoteData('TMState', $document_state);
+    $mapping->addRemoteData('TMState', $status);
     $mapping->save();
   }
 

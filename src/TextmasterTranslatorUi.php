@@ -4,9 +4,10 @@ namespace Drupal\tmgmt_textmaster;
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\tmgmt\JobInterface;
-use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\Core\Link;
+use Drupal\tmgmt\JobInterface;
+use Drupal\tmgmt\JobItemInterface;
+use Drupal\tmgmt\TranslatorPluginUiBase;
 
 /**
  * TextMaster translator UI.
@@ -189,6 +190,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       }
     }
     tmgmt_write_request_messages($job);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function reviewFormSubmit(array $form, FormStateInterface $form_state, JobItemInterface $item) {
+    // Nothing to do here by default.
   }
 
 }
