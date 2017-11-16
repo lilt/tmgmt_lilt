@@ -738,7 +738,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           }
 
           if (array_key_exists('status', $info)
-            && $this->remoteTranslationCompleted($info['status'])
+            && $this->isRemoteTranslationCompleted($info['status'])
           ) {
             try {
               $this->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
@@ -772,7 +772,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * @return bool
    *   True if completed.
    */
-  public function remoteTranslationCompleted($status) {
+  public function isRemoteTranslationCompleted($status) {
     return $status == 'in_review' || $status == 'completed';
   }
 
@@ -823,7 +823,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $translated_file_content = $translated_file_response->getBody()
       ->getContents();
     $file_data = $this->parseTranslationData($translated_file_content);
-    if ($this->remoteTranslationCompleted($document_state)) {
+    if ($this->isRemoteTranslationCompleted($document_state)) {
       $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;
     }
     else {
