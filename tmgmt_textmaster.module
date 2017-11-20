@@ -104,3 +104,20 @@ function tmgmt_textmaster_views_data_alter(array &$data) {
     ],
   ];
 }
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_textmaster_form_tmgmt_job_abort_form_alter(&$form) {
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = \Drupal::routeMatch()->getParameter('tmgmt_job');
+  if (empty($job) ||
+    !$job->hasTranslator() ||
+    $job->getTranslatorId() != 'textmaster'
+  ) {
+    return;
+  }
+  // Set new message to confirm Job abortion for TextMaster Jobs.
+  $confirmation_message = t("This will send a request to TextMaster to abort the job. Please know that if the job has been started on TextMaster side, you won’t be paid back.");
+  $form['description']['#markup'] = $confirmation_message->render();
+}
