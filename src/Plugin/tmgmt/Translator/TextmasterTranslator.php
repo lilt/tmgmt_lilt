@@ -24,7 +24,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * @TranslatorPlugin(
  *   id = "textmaster",
  *   label = @Translation("TextMaster"),
- *   description = @Translation("TextMaster translator service."),
+ *   description = @Translation("TextMaster translation service."),
  *   ui = "Drupal\tmgmt_textmaster\TextmasterTranslatorUi",
  * )
  */
@@ -707,22 +707,18 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   A job containing job items that translations will be fetched for.
    */
   public function fetchTranslatedFiles(JobInterface $job) {
-    // Set the batch size to minimum for big documents to prevent timeout.
-    $batch_size = 1;
     $job_items = $job->getItems();
 
-    $chunks = array_chunk($job_items, $batch_size);
-
-    foreach ($chunks as $chunk) {
+    foreach ($job_items as $job_item) {
       $operations[] = [
-        [static::class, 'pullTranslationsBatchProcess'],
-        [$chunk],
+        [static::class, 'fetchTranslationsBatchProcess'],
+        [$job_item],
       ];
     }
     $batch = [
       'title' => t('Pulling translations'),
       'operations' => $operations,
-      'finished' => [static::class , 'pullTranslationsBatchFinish'],
+      'finished' => [static::class , 'fetchTranslationsBatchFinish'],
       'init_message' => t('Pull Translation batch is starting.'),
       'progress_message' => t('Processed @current out of @total Job Items.'),
     ];
@@ -732,84 +728,77 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   /**
    * Batch callback for pull Job translations process.
    *
-   * @param array $items
-   *   Array of Job Items.
+   * @param \Drupal\tmgmt\JobItemInterface $job_item
+   *   Job Item.
    * @param array $context
    *   An array that will contain information about the
    *   status of the batch. The values in $context will retain their
    *   values as the batch progresses.
    */
-  public static function pullTranslationsBatchProcess(array $items, array &$context) {
-    if (!isset($context['sandbox']['progress'])) {
-      $context['sandbox']['progress'] = 0;
-    }
-    if (!isset($context['sandbox']['max'])) {
-      $context['sandbox']['max'] = count($items);
-    }
-    if (!isset($context['results']['job_id'])) {
-      $context['results']['job_id'] = reset($items)->getJobId();
-    }
-    if (!isset($context['results']['errors'])) {
+  public static function fetchTranslationsBatchProcess(JobItemInterface $job_item, array &$context) {
+    if (empty($context['results'])) {
+      // Set initial values.
+      $context['results']['job_id'] = $job_item->getJobId();
       $context['results']['errors'] = [];
-    }
-    if (!isset($context['results']['translated'])) {
       $context['results']['translated'] = 0;
     }
+
     $translated = $context['results']['translated'];
     $errors = $context['results']['errors'];
-    $job = reset($items)->getJob();
+    $job = $job_item->getJob();
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->setTranslator($job->getTranslator());
-    /** @var \Drupal\tmgmt\JobItemInterface $job_item */
-    foreach ($items as $job_item) {
-      $mappings = RemoteMapping::loadByLocalData($job->id(), $job_item->id());
-      /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
-      foreach ($mappings as $mapping) {
-        // Prepare parameters for Job API (to get the job status).
-        $document_id = $mapping->getRemoteIdentifier3();
-        $project_id = $mapping->getRemoteIdentifier2();
-        $info = [];
-        try {
-          $info = $translator_plugin->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
-        }
-        catch (TMGMTException $e) {
-          $job->addMessage('Error fetching the job item: @job_item. TextMaster document @document_id not found.',
-            [
-              '@job_item' => $job_item->label(),
-              '@document_id' => $document_id,
-            ], 'error');
-          $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
-        }
-
-        if (!array_key_exists('status', $info)
-          || !$translator_plugin->isRemoteTranslationCompleted($info['status'])
-        ) {
-          continue;
-        }
-        try {
-          $translator_plugin->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
-          $translated++;
-        }
-        catch (TMGMTException $e) {
-          $job->addMessage('Exception occurred while fetching the job item "@job_item": @error.', [
-            '@job_item' => $job_item->label(),
-            '@error' => $e,
-          ], 'error');
-          $errors[] = 'Exception occurred while fetching the job item ' . $job_item->label();
-          continue;
-        }
+    $is_item_translated = FALSE;
+    // Get all existing mappings for this Job Item.
+    $mappings = RemoteMapping::loadByLocalData($job->id(), $job_item->id());
+    /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */
+    foreach ($mappings as $mapping) {
+      // Prepare parameters for Job API (to get the job status).
+      $document_id = $mapping->getRemoteIdentifier3();
+      $project_id = $mapping->getRemoteIdentifier2();
+      $info = [];
+      try {
+        $info = $translator_plugin->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
       }
-      $context['sandbox']['progress']++;
+      catch (TMGMTException $e) {
+        $job->addMessage('Error fetching the job item: @job_item. TextMaster document @document_id not found.',
+          [
+            '@job_item' => $job_item->label(),
+            '@document_id' => $document_id,
+          ], 'error');
+        $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
+      }
+
+      if (!array_key_exists('status', $info)
+        || !$translator_plugin->isRemoteTranslationCompleted($info['status'])
+      ) {
+        continue;
+      }
+
+      try {
+        $translator_plugin->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
+        $is_item_translated = TRUE;
+      }
+      catch (TMGMTException $e) {
+        $job->addMessage('Exception occurred while fetching the job item "@job_item": @error.', [
+          '@job_item' => $job_item->label(),
+          '@error' => $e,
+        ], 'error');
+        $errors[] = 'Exception occurred while fetching the job item ' . $job_item->label();
+      }
     }
+    if ($is_item_translated) {
+      $translated++;
+    }
+
+    // Set  results:
     $context['results']['translated'] = $translated;
     $context['results']['untranslated'] = count($job->getItems()) - $translated;
     $context['results']['errors'] = $errors;
-    // Inform the batch engine that we are not finished,
-    // and provide an estimation of the completion level we reached.
-    if ($context['sandbox']['progress'] != $context['sandbox']['max']) {
-      $context['finished'] = $context['sandbox']['progress'] / $context['sandbox']['max'];
-    }
+
+    // Inform the batch engine that we finished the operation with this item.
+    $context['finished'] = 1;
   }
 
   /**
@@ -822,28 +811,33 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * @param array $operations
    *   Operations.
    */
-  public static function pullTranslationsBatchFinish($success, array $results, array $operations) {
-    if ($success) {
-      $translated = $results['translated'];
-      $untranslated = $results['untranslated'];
-      $errors = $results['errors'];
-      $job = Job::load($results['job_id']);
-      if (count($errors) == 0) {
-        if ($untranslated == 0 && $translated != 0) {
-          $job->addMessage(t('Fetched translations for @translated job items.', ['@translated' => $translated]));
-        }
-        elseif ($translated == 0) {
-          drupal_set_message(t('No job item has been translated yet.'));
-        }
-        else {
-          $job->addMessage(t('Fetched translations for @translated job items, @untranslated are not translated yet.', [
-            '@translated' => $translated,
-            '@untranslated' => $untranslated,
-          ]));
-        }
-      }
-      tmgmt_write_request_messages($job);
+  public static function fetchTranslationsBatchFinish($success, array $results, array $operations) {
+    if (!$success) {
+      return;
     }
+    $translated = $results['translated'];
+    $untranslated = $results['untranslated'];
+    $errors = $results['errors'];
+    $job = Job::load($results['job_id']);
+    if (count($errors) == 0) {
+      if ($untranslated == 0 && $translated != 0) {
+        $job->addMessage(t('Fetched translations for @translated job items.', ['@translated' => $translated]));
+      }
+      elseif ($translated == 0) {
+        drupal_set_message(t('No job item has been translated yet.'));
+      }
+      else {
+        $job->addMessage(t('Fetched translations for @translated job items, @untranslated are not translated yet.', [
+          '@translated' => $translated,
+          '@untranslated' => $untranslated,
+        ]));
+      }
+    }
+    else {
+      drupal_set_message(t('Error(s) occurred during fetching translations for Job: @errror'), ['@error' => implode('</br>', $errors)]);
+    }
+
+    tmgmt_write_request_messages($job);
   }
 
   /**
