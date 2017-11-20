@@ -129,7 +129,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     if ($job->isRejected()) {
       return;
     }
-    $job_remote_data = end($job->getRemoteMappings());
+    $mappings = $job->getRemoteMappings();
+    $job_remote_data = end($mappings);
     $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
     if ($auto_launch) {
       $job->submitted();
@@ -834,7 +835,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     else {
-      drupal_set_message(t('Error(s) occurred during fetching translations for Job: @errror'), ['@error' => implode('</br>', $errors)]);
+      drupal_set_message(t('Error(s) occurred during fetching translations for Job: @error', ['@error' => implode('</br>', $errors)]));
     }
 
     tmgmt_write_request_messages($job);
