@@ -31,11 +31,15 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
       'title' => t('View on TextMaster'),
       'weight' => 10,
     ];
-    $job_remote_data = end($entity->getRemoteMappings());
+    $mappings = $entity->getRemoteMappings();
+    $job_remote_data = end($mappings);
     $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
     if ($entity->isState(Job::STATE_UNPROCESSED) && !$auto_launch) {
       $operations['launch'] = [
-        'url' => Url::fromRoute('tmgmt_textmaster.launch', ['tm_job_id' => $entity->id(), 'tm_project_id' => $project_id]),
+        'url' => Url::fromRoute('tmgmt_textmaster.launch', [
+          'tm_job_id' => $entity->id(),
+          'tm_project_id' => $project_id,
+        ]),
         'title' => t('Launch'),
         'weight' => 10,
       ];
@@ -45,7 +49,8 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
   /** @var Drupal\tmgmt\Entity\JobItem $entity */
   if ($entity->bundle() == 'tmgmt_job_item') {
     // Get the mapping only for the last created Project.
-    $remote_mapping = end($entity->getRemoteMappings());
+    $mappings = $entity->getRemoteMappings();
+    $remote_mapping = end($mappings);
     $module_name = $remote_mapping->remote_identifier_1->value;
     $document_id = $remote_mapping->remote_identifier_3->value;
     $project_id = $remote_mapping->remote_identifier_2->value;
@@ -98,4 +103,21 @@ function tmgmt_textmaster_views_data_alter(array &$data) {
       'id' => 'tmgmt_textmaster_price',
     ],
   ];
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_textmaster_form_tmgmt_job_abort_form_alter(&$form) {
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = \Drupal::routeMatch()->getParameter('tmgmt_job');
+  if (empty($job) ||
+    !$job->hasTranslator() ||
+    $job->getTranslatorId() != 'textmaster'
+  ) {
+    return;
+  }
+  // Set new message to confirm Job abortion for TextMaster Jobs.
+  $confirmation_message = t("This will send a request to TextMaster to abort the job. Please know that if the job has been started on TextMaster side, you won’t be paid back.");
+  $form['description']['#markup'] = $confirmation_message->render();
 }

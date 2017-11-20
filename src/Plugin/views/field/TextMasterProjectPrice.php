@@ -57,11 +57,11 @@ class TextMasterProjectPrice extends FieldPluginBase {
     }
     $project_id = tmgmt_textmaster_get_project_by_job_id($job->id());
     $project_info = $this->translatorPlugin->getTmProject($project_id);
-    if (!empty($cost = $project_info['cost_in_currency'])) {
-      return $cost['amount'] . ' ' . $cost['currency'];
+    if (isset($project_info['cost_in_currency']) && !empty($cost = $project_info['cost_in_currency'])) {
+      return round($cost['amount'], 2) . ' ' . $cost['currency'];
     }
-    if (!empty($project_info['total_costs'][0]['amount'])) {
-      return $project_info['total_costs'][0]['amount'] . ' ' . $project_info['total_costs'][0]['currency'];
+    if (isset($project_info['total_costs'][0]['amount']) && !empty($project_info['total_costs'][0]['amount'])) {
+      return round($project_info['total_costs'][0]['amount'], 2) . ' ' . $project_info['total_costs'][0]['currency'];
     }
     return FALSE;
   }
