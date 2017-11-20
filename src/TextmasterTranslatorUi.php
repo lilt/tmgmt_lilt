@@ -170,25 +170,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
-    $result = $translator_plugin->fetchTranslatedFiles($job);
-    $translated = $result['translated'];
-    $untranslated = $result['untranslated'];
-    $errors = $result['errors'];
-    if (count($errors) == 0) {
-      if ($untranslated == 0 && $translated != 0) {
-        $job->addMessage(t('Fetched translations for @translated job items.', ['@translated' => $translated]));
-      }
-      elseif ($translated == 0) {
-        drupal_set_message(t('No job item has been translated yet.'));
-      }
-      else {
-        $job->addMessage(t('Fetched translations for @translated job items, @untranslated are not translated yet.', [
-          '@translated' => $translated,
-          '@untranslated' => $untranslated,
-        ]));
-      }
-    }
-    tmgmt_write_request_messages($job);
+    $translator_plugin->fetchTranslatedFiles($job);
   }
 
 }
