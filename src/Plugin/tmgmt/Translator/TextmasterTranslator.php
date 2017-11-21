@@ -153,41 +153,153 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $this->setTranslator($job->getTranslator());
     try {
       $project_id = $this->createTmProject($job);
-      $job->addMessage('Created a new project in TextMaster with the id: @id', ['@id' => $project_id], 'debug');
+      $job->addMessage('Created a new Project in TextMaster with the id: @id', ['@id' => $project_id], 'debug');
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
       foreach ($job_items as $job_item) {
-        $document_id = $this->sendFiles($job_item, $project_id);
-
-        /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote_mapping */
-        $remote_mapping = RemoteMapping::create([
-          'tjid' => $job->id(),
-          'tjiid' => $job_item->id(),
-          'remote_identifier_1' => 'tmgmt_textmaster',
-          'remote_identifier_2' => $project_id,
-          'remote_identifier_3' => $document_id,
-          'remote_data' => [
-            'FileStateVersion' => 1,
-            'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
-            'TemplateAutoLaunch' => $this->isTemplateAutoLaunch($job->getSetting('project_template')),
-          ],
-        ]);
-        $remote_mapping->save();
-
-        if ($job_item->getJob()->isContinuous()) {
-          $job_item->active();
-        }
+        $operations[] = [
+          [static::class, 'createDocumentForJobItemBatchProcess'],
+          [$job_item, $job, $project_id],
+        ];
       }
-      $this->finalizeTmProject($project_id);
+      $batch = [
+        'title' => t('Creating TextMaster Documents'),
+        'operations' => $operations,
+        'finished' => [static::class , 'createDocumentForJobItemBatchFinish'],
+        'init_message' => t('Creating TextMaster Documents batch is starting.'),
+        'progress_message' => t('Processed @current out of @total Job Items.'),
+      ];
+
+      // Set batch process for Documents creation.
+      batch_set($batch);
+
     }
     catch (TMGMTException $e) {
       $job->rejected('Job has been rejected with following error: @error',
         ['@error' => $e->getMessage()], 'error');
+    }
+    return $job;
+  }
+
+  /**
+   * Batch callback for Document creation process.
+   *
+   * @param \Drupal\tmgmt\JobItemInterface $job_item
+   *   Job Item.
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   Drupal tmgmt Job.
+   * @param string $project_id
+   *   Project in TextMaster for this job.
+   * @param array $context
+   *   An array that will contain information about the
+   *   status of the batch. The values in $context will retain their
+   *   values as the batch progresses.
+   */
+  public static function createDocumentForJobItemBatchProcess(JobItemInterface $job_item, JobInterface $job, $project_id, array &$context) {
+    if (empty($context['results'])) {
+      // Set initial values.
+      $context['results']['job_id'] = $job_item->getJobId();
+      $context['results']['project_id'] = $project_id;
+      $context['results']['created'] = 0;
+      $context['results']['errors'] = [];
+    }
+
+    try {
+      /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
+      $translator_plugin = $job->getTranslator()->getPlugin();
+      $translator_plugin->setTranslator($job->getTranslator());
+      $document_id = $translator_plugin->sendFiles($job_item, $project_id);
+
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote_mapping */
+      $remote_mapping = RemoteMapping::create([
+        'tjid' => $job->id(),
+        'tjiid' => $job_item->id(),
+        'remote_identifier_1' => 'tmgmt_textmaster',
+        'remote_identifier_2' => $project_id,
+        'remote_identifier_3' => $document_id,
+        'remote_data' => [
+          'FileStateVersion' => 1,
+          'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
+          'TemplateAutoLaunch' => $translator_plugin->isTemplateAutoLaunch($job->getSetting('project_template')),
+        ],
+      ]);
+      $remote_mapping->save();
+      $job->addMessage('Created a new Document in TextMaster with the id: @id for Job Item: @item_label', [
+        '@id' => $project_id,
+        '@item_label' => $job_item->label(),
+      ], 'debug');
+
+      if ($job_item->getJob()->isContinuous()) {
+        $job_item->active();
+      }
+
+      $context['results']['created']++;
+    }
+    catch (\Exception $e) {
+      // Delete Remote mapping if error occurred.
       if (isset($remote_mapping)) {
         $remote_mapping->delete();
       }
+      $message = t('Exception occurred while creating a Document for the job item "@job_item": @error.', [
+        '@job_item' => $job_item->label(),
+        '@error' => $e,
+      ]);
+      $job->addMessage($message->render(), [], 'debug');
+
+      $context['results']['errors'][] = $message;
     }
-    return $job;
+
+    // Inform the batch engine that we finished the operation with this item.
+    $context['finished'] = 1;
+  }
+
+  /**
+   * Batch 'finished' callback for Creating TextMaster documents process.
+   *
+   * @param bool $success
+   *   Batch success.
+   * @param array $results
+   *   Results.
+   * @param array $operations
+   *   Operations.
+   */
+  public static function createDocumentForJobItemBatchFinish($success, array $results, array $operations) {
+    if (!$success) {
+      return;
+    }
+    $errors = $results['errors'];
+    $created = $results['created'];
+    $job = Job::load($results['job_id']);
+    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
+    $translator_plugin = $job->getTranslator()->getPlugin();
+    $translator_plugin->setTranslator($job->getTranslator());
+
+    if (count($errors) == 0 && !empty($created)) {
+
+      // Everything went OK. We can Finalize the project.
+      $translator_plugin->finalizeTmProject($results['project_id']);
+      $job->addMessage('A TextMaster Project with the id: @id was finalized', [
+        '@id' => $results['project_id'],
+      ], 'debug');
+      drupal_set_message(t('@created documents were created in TextMaster.', ['@created' => $created]));
+    }
+    // Some errors occurred. Show them.
+    elseif (!empty($created)) {
+      $message = t('Project for job @job_label was not finalized. @created documents were created in TextMaster. @errors_count error(s) occurred during Document creation: @error', [
+        '@job_label' => $job->label(),
+        '@created' => $created,
+        '@errors_count' => count($errors),
+        '@error' => implode('; ', $errors),
+      ]);
+      drupal_set_message($message->render());
+    }
+    else {
+      $message = t('Project for job @job_label was not finalized. Error(s) occurred during Document creation: @error', [
+        '@job_label' => $job->label(),
+        '@error' => implode('; ', $errors),
+      ]);
+      drupal_set_message($message->render());
+    }
   }
 
   /**
@@ -591,7 +703,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * @return string
    *   TextMaster Document Id.
    */
-  private function sendFiles(JobItemInterface $job_item, $project_id) {
+  public function sendFiles(JobItemInterface $job_item, $project_id) {
     /** @var \Drupal\tmgmt_file\Format\FormatInterface $xliff_converter */
     $xliff_converter = \Drupal::service('plugin.manager.tmgmt_file.format')
       ->createInstance('xlf');
@@ -822,20 +934,20 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $job = Job::load($results['job_id']);
     if (count($errors) == 0) {
       if ($untranslated == 0 && $translated != 0) {
-        $job->addMessage(t('Fetched translations for @translated job items.', ['@translated' => $translated]));
+        $job->addMessage(t('Fetched translations for @translated job item(s).', ['@translated' => $translated]));
       }
       elseif ($translated == 0) {
         drupal_set_message(t('No job item has been translated yet.'));
       }
       else {
-        $job->addMessage(t('Fetched translations for @translated job items, @untranslated are not translated yet.', [
+        $job->addMessage(t('Fetched translations for @translated job item(s), @untranslated are not translated yet.', [
           '@translated' => $translated,
           '@untranslated' => $untranslated,
         ]));
       }
     }
     else {
-      drupal_set_message(t('Error(s) occurred during fetching translations for Job: @error', ['@error' => implode('</br>', $errors)]));
+      drupal_set_message(t('Error(s) occurred during fetching translations for Job: @error', ['@error' => implode('; ', $errors)]));
     }
 
     tmgmt_write_request_messages($job);
