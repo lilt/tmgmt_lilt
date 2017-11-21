@@ -100,6 +100,15 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       ];
     }
 
+    // Project Price.
+    $settings['project_price'] = [
+      '#access' => FALSE,
+      '#type' => 'textfield',
+      '#title' => t('Project Price'),
+      '#description' => t('TextMaster Project price.'),
+      '#default_value' => $job->getSetting('project_price'),
+    ];
+
     // Project Templates.
     $templates_json = $translator_plugin->getTmApiTemplates();
     $sourceLang = $job->getRemoteSourceLanguage();
@@ -126,18 +135,11 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'select',
       '#title' => t('Project template'),
       '#options' => $templates,
-      '#description' => t('Select a TextMaster project template.'),
+      '#description' => t('<a href=:template_url>Create new project template</a>', [
+        ':template_url' => Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')->toString(),
+      ]),
       '#required' => TRUE,
       '#default_value' => $job->getSetting('project_template'),
-    ];
-
-    // Project Price.
-    $settings['project_price'] = [
-      '#access' => FALSE,
-      '#type' => 'textfield',
-      '#title' => t('Project Price'),
-      '#description' => t('TextMaster Project price.'),
-      '#default_value' => $job->getSetting('project_price'),
     ];
 
     return $settings;
