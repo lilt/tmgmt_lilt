@@ -125,19 +125,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * {@inheritdoc}
    */
   public function requestTranslation(JobInterface $job) {
-    $job = $this->requestJobItemsTranslation($job->getItems());
-    if ($job->isRejected()) {
-      return;
-    }
-    $mappings = $job->getRemoteMappings();
-    $job_remote_data = end($mappings);
-    $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
-    if ($auto_launch) {
-      $job->submitted();
-    }
-    else {
-      $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
-    }
+    $this->requestJobItemsTranslation($job->getItems());
   }
 
   /**
@@ -281,6 +269,19 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       $job->addMessage('A TextMaster Project with the id: @id was finalized', [
         '@id' => $results['project_id'],
       ], 'debug');
+      // Set Job state.
+      if (!$job->isRejected()) {
+        $mappings = $job->getRemoteMappings();
+        $job_remote_data = end($mappings);
+        $auto_launch = $job_remote_data->remote_data->TemplateAutoLaunch;
+        if ($auto_launch) {
+          $job->submitted();
+        }
+        else {
+          $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
+        }
+      }
+
       drupal_set_message(t('@created documents were created in TextMaster.', ['@created' => $created]));
     }
     // Some errors occurred. Show them.
