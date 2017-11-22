@@ -220,7 +220,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'remote_data' => [
           'FileStateVersion' => 1,
           'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
-          'TemplateAutoLaunch' => $translator_plugin->isTemplateAutoLaunch($job->getSetting('project_template')),
+          'TemplateAutoLaunch' => $translator_plugin->isTemplateAutoLaunch($job->settings->templates_wrapper['project_template']),
         ],
       ]);
       $remote_mapping->save();
@@ -531,7 +531,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'project' => [
         'name' => $name,
         'activity_name' => 'translation',
-        'api_template_id' => $job->getSetting('project_template'),
+        'api_template_id' => $job->settings->templates_wrapper['project_template'],
         'category' => 'C033',
       ],
     ];
