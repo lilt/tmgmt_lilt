@@ -125,7 +125,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#options' => $templates,
       '#description' => t('Select a TextMaster project template.'),
       '#required' => TRUE,
-      '#default_value' => $job->getSetting('project_template'),
+      '#default_value' => $job->settings->templates_wrapper['project_template'],
     ];
     // Add template link.
     $settings['templates_wrapper']['add_template'] = [
