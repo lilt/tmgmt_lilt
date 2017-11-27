@@ -17,6 +17,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * TextMaster translation plugin controller.
@@ -94,6 +95,9 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     try {
       $supported_languages = $this->sendApiRequest('v1/public/languages');
       foreach ($supported_languages['languages'] as $language) {
+        if (!preg_match('/[-]/', $language['code'])) {
+          continue;
+        }
         $supported_remote_languages[$language['code']] = $language['value']
           . ' ('
           . $language['code']
@@ -250,10 +254,13 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   Results.
    * @param array $operations
    *   Operations.
+   *
+   * @return \Symfony\Component\HttpFoundation\RedirectResponse|false
+   *   Redirects to jobs overview page if success.
    */
   public static function createDocumentForJobItemBatchFinish($success, array $results, array $operations) {
     if (!$success) {
-      return;
+      return FALSE;
     }
     $errors = $results['errors'];
     $created = $results['created'];
@@ -281,8 +288,13 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
         }
       }
-
-      drupal_set_message(t('@created documents were created in TextMaster.', ['@created' => $created]));
+      drupal_set_message(t('@created document(s) was(were) created in TextMaster for Job "@job_label".', [
+        '@created' => $created,
+        '@job_label' => $job->label(),
+      ]));
+      $jobs_list_url = Url::fromRoute('view.tmgmt_job_overview.page_1')
+        ->toString();
+      return new RedirectResponse($jobs_list_url);
     }
     // Some errors occurred. Show them.
     elseif (!empty($created)) {
@@ -361,7 +373,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
-   * Sends a request to the TextMaster API and refreshes the token if necessary.
+   * Sends a request to the TextMaster API.
    *
    * @param string $path
    *   API path.

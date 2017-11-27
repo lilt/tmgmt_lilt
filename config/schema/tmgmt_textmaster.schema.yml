@@ -4,12 +4,12 @@ tmgmt.translator.settings.textmaster:
     auto_accept:
       type: boolean
       label: Automatically accept
-    url:
+    textmaster_service_url:
       type: string
-      label: Remote URL, used for tests.
-    api_key:
+      label: TextMaster API url
+    textmaster_api_key:
       type: string
-      label: API key
-    api_secret:
+      label: TextMaster API key
+    textmaster_api_secret:
       type: string
-      label: API Secret
+      label: TextMaster API secret
