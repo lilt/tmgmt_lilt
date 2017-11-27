@@ -288,7 +288,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
         }
       }
-      drupal_set_message(t('@created document(s) were created in TextMaster.', ['@created' => $created]));
+      drupal_set_message(t('@created document(s) was(were) created in TextMaster for Job "@job_label".', [
+        '@created' => $created,
+        '@job_label' => $job->label(),
+      ]));
       $jobs_list_url = Url::fromRoute('view.tmgmt_job_overview.page_1')
         ->toString();
       return new RedirectResponse($jobs_list_url);
