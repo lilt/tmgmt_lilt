@@ -40,7 +40,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'textfield',
       '#title' => t('TextMaster API key'),
       '#default_value' => $translator->getSetting('textmaster_api_key') ?: '',
-      '#description' => t("Please enter the TextMaster API key. You can find it <a href=:api_key_url>here</a>", [
+      '#description' => t("Please enter the TextMaster API key. You can find it <a href=:api_key_url  target='_blank'>here</a>", [
         ':api_key_url' => $tm_api_key_url,
       ]),
       '#required' => TRUE,
@@ -49,7 +49,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'textfield',
       '#title' => t('TextMaster API secret'),
       '#default_value' => $translator->getSetting('textmaster_api_secret') ?: '',
-      '#description' => t("Please enter your TextMaster API secret. You can find it <a href=:api_key_url>here</a>", [
+      '#description' => t("Please enter your TextMaster API secret. You can find it <a href=:api_key_url target='_blank'>here</a>", [
         ':api_key_url' => $tm_api_key_url,
       ]),
       '#required' => TRUE,
@@ -86,12 +86,20 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    * {@inheritdoc}
    */
   public function checkoutSettingsForm(array $form, FormStateInterface $form_state, JobInterface $job) {
+
+    drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
+
     // Account Credits.
     $account_info = $translator_plugin->getTmAccountInfo();
     if (!empty($account_info['wallet'])) {
-      $buy_credits_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new');
+      $buy_credits_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new', [
+        'attributes' => [
+          'target' => '_blank',
+        ],
+      ]);
       $settings['account_credits'] = [
         '#type' => 'item',
         '#title' => t('Available credits: @current_money @currency_code', [
@@ -131,7 +139,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $settings['templates_wrapper']['add_template'] = [
       '#type' => 'item',
       '#title' => t('Want to add project template?'),
-      '#markup' => t('You can create it <a href=:template_url>here</a>', [
+      '#markup' => t('You can create it <a href=:template_url target="_blank">here</a>', [
         ':template_url' => Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')
           ->toString(),
       ]),
@@ -145,6 +153,16 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
         'callback' => [$this, 'updateTemplatesSelectlist'],
       ],
       '#weight' => 10,
+    ];
+
+    // Xliff converter setting to allow html tags.
+    $settings['xliff_cdata'] = [
+      '#type' => 'checkbox',
+      '#title' => t('XLIFF CDATA'),
+      '#value' => TRUE,
+      '#description' => t('Check to use CDATA for import/export.'),
+      '#default_value' => $job->getSetting('xliff_cdata'),
+      '#access' => FALSE,
     ];
 
     return $settings;
