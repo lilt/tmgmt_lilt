@@ -6,8 +6,6 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
 use Drupal\Core\Cache\Cache;
-use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
@@ -86,8 +84,9 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    * {@inheritdoc}
    */
   public function checkoutSettingsForm(array $form, FormStateInterface $form_state, JobInterface $job) {
-
-    drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+    if (!$form_state->isRebuilding()) {
+      drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+    }
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
@@ -125,8 +124,12 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'container',
       '#attributes' => ['id' => 'templates-wrapper'],
     ];
-    $templates = $this->getTemplatesList($translator_plugin, $job);
     // Project templates list.
+    if ($form_state->isRebuilding() && $form_state->get('update_templates')) {
+      // If this is an AJAX-Request, clear templates cache.
+      Cache::invalidateTags(['tmgmt_textmaster']);
+    }
+    $templates = $this->getTemplatesList($translator_plugin, $job);
     $settings['templates_wrapper']['project_template'] = [
       '#type' => 'select',
       '#title' => t('Project template'),
@@ -146,11 +149,14 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     ];
     // Update templates button.
     $settings['update_template_list'] = [
-      '#type' => 'button',
+      '#type' => 'submit',
       '#value' => t('Update templates'),
       '#description' => t('If you added new template in TextMaster click on this button to update the list in Drupal.'),
+      '#validate' => [[$this, 'updateTemplatesValidate']],
       '#ajax' => [
         'callback' => [$this, 'updateTemplatesSelectlist'],
+        'wrapper' => 'templates-wrapper',
+        'method' => 'replace',
       ],
       '#weight' => 10,
     ];
@@ -199,6 +205,22 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
   }
 
   /**
+   * Set a value in form_state to rebuild the form and fill with data.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   */
+  public function updateTemplatesValidate(array &$form, FormStateInterface $form_state) {
+    $form_state->setRebuild(TRUE);
+    $form_state->set('update_templates', TRUE);
+    // Clear errors to allow form rebuild.
+    $form_state->clearErrors();
+    $form_state->setValidationComplete();
+  }
+
+  /**
    * Ajax callback to update TextMaster templates list.
    *
    * @param array $form
@@ -206,32 +228,11 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   FormState.
    *
-   * @return \Drupal\Core\Ajax\AjaxResponse
-   *   Response that replaces selectlist with the new one.
+   * @return array
+   *   Form element that replaces templates_wrapper with the new one.
    */
   public function updateTemplatesSelectlist(array $form, FormStateInterface $form_state) {
-    // Invalidate templates cache.
-    Cache::invalidateTags(['tmgmt_textmaster']);
-
-    // Set new values.
-    $response = new AjaxResponse();
-    /** @var \Drupal\tmgmt\Entity\Job $job */
-    $job = $form_state->getFormObject()->getEntity();
-    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
-    $translator_plugin = $this->getTranslatorPluginForJob($job);
-    $htmlId = '#templates-wrapper';
-    $wrapper = $form['translator_wrapper']['settings']['templates_wrapper'];
-    $templates = $this->getTemplatesList($translator_plugin, $job);
-    // Add Empty value as selectlist has already been processed.
-    $empty_option = ['' => t('-- Select --')];
-    $wrapper['project_template']['#options'] = $empty_option + $templates;
-    // Clear errors.
-    unset($wrapper['project_template']['#errors']);
-    $form_state->clearErrors();
-
-    $response->addCommand(new HtmlCommand($htmlId, $wrapper));
-
-    return $response;
+    return $form['translator_wrapper']['settings']['templates_wrapper'];
   }
 
   /**
