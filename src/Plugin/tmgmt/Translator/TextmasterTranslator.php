@@ -319,11 +319,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    * {@inheritdoc}
    */
   public function abortTranslation(JobInterface $job) {
-    // Assume that we can abort a translation job at any time.
     if (!$this->translator) {
       $this->setTranslator($job->getTranslator());
     }
-    $mapping = end($job->getRemoteMappings());
+    $mappings = $job->getRemoteMappings();
+    $mapping = end($mappings);
     $project_id = $mapping->remote_identifier_2->value;
     $project_info = $this->getTmProject($project_id);
     if (!in_array($project_info['status'], ['in_creation', 'in_progress'])) {
@@ -617,7 +617,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $result = $this->sendApiRequest($request_path);
     $all_pages_list = array_merge($result[$result_key], $previous_pages_result);
     if (isset($result['next_page'])) {
-      return $this->allPagesResult($result['next_page'], $result_key, $all_pages_list);
+      // Remove basic API path here to avoid duplication.
+      $next_page_base = reset(explode('?', $request_path));
+      $next_page_params = end(explode('?', $result['next_page']));
+      $next_page_path = $next_page_base . '?' . $next_page_params;
+      return $this->allPagesResult($next_page_path, $result_key, $all_pages_list);
     }
     return $all_pages_list;
   }
@@ -706,7 +710,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
-   * Send the files to TextMaster.
+   * Send files to TextMaster.
    *
    * @param \Drupal\tmgmt\JobItemInterface $job_item
    *   The Job.
@@ -1065,19 +1069,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function utcDate() {
     return gmdate('Y-m-d H:i:s');
-  }
-
-  /**
-   * Checks if the string is not empty.
-   *
-   * @param string $string
-   *   String.
-   *
-   * @return bool
-   *   True if not empty.
-   */
-  public function containsText($string) {
-    return $string != NULL && $string != "" && !ctype_space(preg_replace("/(&nbsp;)/", "", $string));
   }
 
   /**
