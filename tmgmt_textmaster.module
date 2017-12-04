@@ -103,7 +103,7 @@ function tmgmt_textmaster_get_project_by_job_id($job_id) {
 function tmgmt_textmaster_views_data_alter(array &$data) {
 
   $data['tmgmt_job']['tmgmt_textmaster_price'] = [
-    'title' => 'Project Price',
+    'title' => t('Project Price'),
     'help' => 'Displays a TextMaster price of the job.',
     'real field' => 'settings',
     'field' => [
