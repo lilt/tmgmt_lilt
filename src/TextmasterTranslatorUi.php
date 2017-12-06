@@ -387,7 +387,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     $response = new AjaxResponse();
     // Hide "Ask for revision button".
-    $response->addCommand(new ReplaceCommand('#ask-revision-button', $form['actions']['ask_revision_in_tm']));
+    $response->addCommand(new ReplaceCommand('.ask-for-revision-button', $form['actions']['ask_revision_in_tm']));
     // Show revision message field.
     $response->addCommand(new ReplaceCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
 

@@ -141,10 +141,13 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
     '#ajax' => [
       'callback' => [TextmasterTranslatorUi::class, 'askForRevisionCallback'],
     ],
-    '#attributes' => ['id' => 'ask-revision-button'],
+    '#attributes' => [
+      'class' => ['ask-for-revision-button'],
+    ],
     '#limit_validation_errors' => [],
     '#weight' => 21,
   ];
+
   // Add container for revision message.
   $form['revision_message_wrapper'] = [
     '#type' => 'container',
