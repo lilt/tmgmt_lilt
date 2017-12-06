@@ -202,13 +202,31 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    */
   public function reviewForm(array $form, FormStateInterface $form_state, JobItemInterface $item) {
 
-    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
     $translator = $item->getTranslator();
     if ($translator->getPluginId() != 'textmaster') {
       return $form;
     }
     if ($item->isState(JobItemInterface::STATE_REVIEW) && !$form_state->isRebuilding()) {
-      drupal_set_message(t('If content is not accepted within 7 days, it will be automatically validated by TextMaster with no possible revision request.'), 'warning');
+      // Check the document status in TextMaster.
+      /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+      $plugin = $item->getTranslatorPlugin();
+      $plugin->setTranslator($translator);
+      $remote = tmgmt_textmaster_get_job_item_remote($item);
+      $document_id = $remote['document_id'];
+      $project_id = $remote['project_id'];
+      $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
+      if (empty($tm_document_data)
+        || !array_key_exists('status', $tm_document_data)
+      ) {
+        return $form;
+      }
+      // Check the document status.
+      if ($tm_document_data['status'] === 'in_review') {
+        drupal_set_message(t('If content is not accepted within 7 days, it will be automatically validated by TextMaster with no possible revision request.'), 'warning');
+      }
+      elseif ($tm_document_data['status'] === 'incomplete') {
+        drupal_set_message(t('Please note, that TextMaster Document for this job item is in status "incomplete" and you wont be able to accept the translation until TextMaster author finishes his work.'), 'warning');
+      }
     }
     return $form;
   }
@@ -470,13 +488,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     }
     // Validation passed. Rebuild the whole form as job item state was changed.
     $response = new AjaxResponse();
-    // Remove previous warning message about 7 days validation.
-    $response->addCommand(new RemoveCommand('div.messages--warning'));
     // Show new messages in form.
     $form['status_messages'] = [
       '#type' => 'status_messages',
     ];
     $response->addCommand(new ReplaceCommand('#tmgmt-textmaster-job-item-form-wrapper', $form));
+    // Remove previous warning message about 7 days validation.
+    $response->addCommand(new RemoveCommand('div.messages--warning'));
 
     return $response;
 

@@ -132,6 +132,21 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
     // Cannot ask for revision if job item is not in_review status.
     return;
   }
+  // Check for textmaster Document status. Revision message will be shown
+  // only if TextMaster document is in status "in_review".
+  /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+  $plugin = $job_item->getTranslatorPlugin();
+  $plugin->setTranslator($job_item->getTranslator());
+  $remote = tmgmt_textmaster_get_job_item_remote($job_item);
+  $document_id = $remote['document_id'];
+  $project_id = $remote['project_id'];
+  $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
+  if (empty($tm_document_data)
+    || !array_key_exists('status', $tm_document_data)
+    || $tm_document_data['status'] != 'in_review'
+  ) {
+    return;
+  }
 
   // All checks passed. Add new button.
   $form['actions']['ask_revision_in_tm'] = [
