@@ -2,11 +2,16 @@
 
 namespace Drupal\tmgmt_textmaster;
 
+use Drupal\Core\Ajax\RemoveCommand;
+use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Link;
 use Drupal\Core\Cache\Cache;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\tmgmt\JobInterface;
+use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
 
@@ -193,7 +198,141 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public function reviewForm(array $form, FormStateInterface $form_state, JobItemInterface $item) {
+
+    $translator = $item->getTranslator();
+    if ($translator->getPluginId() != 'textmaster') {
+      return $form;
+    }
+    if ($item->isState(JobItemInterface::STATE_REVIEW) && !$form_state->isRebuilding()) {
+      // Check the document status in TextMaster.
+      /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+      $plugin = $item->getTranslatorPlugin();
+      $plugin->setTranslator($translator);
+      $remote = tmgmt_textmaster_get_job_item_remote($item);
+      $document_id = $remote['document_id'];
+      $project_id = $remote['project_id'];
+      $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
+      if (empty($tm_document_data)
+        || !array_key_exists('status', $tm_document_data)
+      ) {
+        return $form;
+      }
+      // Check the document status.
+      if ($tm_document_data['status'] === 'in_review') {
+        drupal_set_message(t('If content is not accepted within 7 days, it will be automatically validated by TextMaster with no possible revision request.'), 'warning');
+      }
+      elseif ($tm_document_data['status'] === 'incomplete') {
+        drupal_set_message(t('Please note, that TextMaster Document for this job item is in status "incomplete" and you wont be able to accept the translation until TextMaster author finishes his work.'), 'warning');
+      }
+    }
+    return $form;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function reviewFormValidate(array $form, FormStateInterface $form_state, JobItemInterface $item) {
+
+    $translator = $item->getTranslator();
+    if ($translator->getPluginId() != 'textmaster') {
+      return;
+    }
+    if ($form_state->getTriggeringElement()['#value'] == $form['actions']['save']['#value']) {
+      // Allow 'Save' action for job item.
+      return;
+    }
+    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+    $plugin = $translator->getPlugin();
+    $plugin->setTranslator($translator);
+    $remote = tmgmt_textmaster_get_job_item_remote($item);
+    $document_id = $remote['document_id'];
+    $project_id = $remote['project_id'];
+    $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
+    if (empty($tm_document_data)) {
+      $form_state->setError($form, t('Could not get the TextMaster Document "@document_id" to complete it.', ['@document_id' => $document_id]));
+    }
+    if (!array_key_exists('status', $tm_document_data)
+      || !$plugin->isRemoteTranslationCompleted($tm_document_data['status'])
+    ) {
+      $form_state->setError($form, t('The translation for this job item can not be accepted as the TextMaster document "@document_id" status is "@status".', [
+        '@document_id' => $document_id,
+        '@status' => $tm_document_data['status'],
+      ]));
+    }
+
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function reviewFormSubmit(array $form, FormStateInterface $form_state, JobItemInterface $item) {
+    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+    $translator = $item->getTranslator();
+    if ($translator->getPluginId() != 'textmaster') {
+      return;
+    }
+    // Check if the user clicked on 'Save as completed'.
+    if (empty($form['actions']['accept']) || $form_state->getTriggeringElement()['#value'] != $form['actions']['accept']['#value']) {
+      return;
+    }
+    $plugin = $translator->getPlugin();
+    $plugin->setTranslator($translator);
+    // Get the mapping only for the last created Project.
+    $remote = tmgmt_textmaster_get_job_item_remote($item);
+    $document_id = $remote['document_id'];
+    $project_id = $remote['project_id'];
+    // Check document status. Only "in_review" documents can be completed.
+    $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
+    if (!array_key_exists('status', $tm_document_data)
+      || $tm_document_data['status'] != 'in_review'
+    ) {
+      // This Document must be already completed as Job item passed validation.
+      $message = t('Could not complete TextMaster document "@document_id" with status "@status"', [
+        '@document_id' => $document_id,
+        '@status' => $tm_document_data['status'],
+      ]);
+      drupal_set_message($message);
+      $item->getJob()->addMessage('Could not complete TextMaster document "@document_id" with status "@status"', [
+        '@document_id' => $document_id,
+        '@status' => $tm_document_data['status'],
+      ]);
+      return;
+    }
+    // Complete document in TextMaster.
+    $result = $plugin->completeTmDocument($project_id, $document_id);
+    // Show the result messages.
+    if (!empty($result)) {
+      // Success.
+      $item->getJob()
+        ->addMessage('TextMaster Document "@document_id" was completed', [
+          '@document_id' => $document_id,
+        ]);
+      drupal_set_message(t('TextMaster Document "@document_id" was completed', [
+        '@document_id' => $document_id,
+      ]));
+    }
+    else {
+      // Inform about failure.
+      $item->getJob()
+        ->addMessage('Could not complete TextMaster Document "@document_id"', [
+          '@document_id' => $document_id,
+        ], 'error');
+      drupal_set_message(t('Could not complete TextMaster Document "@document_id"', [
+        '@document_id' => $document_id,
+      ]), 'error');
+    }
+  }
+
+  /**
    * Submit callback to pull translations form TextMaster.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
    */
   public function submitPullTranslations(array $form, FormStateInterface $form_state) {
     /** @var \Drupal\tmgmt\Entity\Job $job */
@@ -233,6 +372,132 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    */
   public function updateTemplatesSelectlist(array $form, FormStateInterface $form_state) {
     return $form['translator_wrapper']['settings']['templates_wrapper'];
+  }
+
+  /**
+   * Set a value in form_state to rebuild the form and fill with data.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   */
+  public static function askForRevisionValidate(array &$form, FormStateInterface $form_state) {
+    $form_state->setRebuild();
+    $form_state->set('ask_for_revision', TRUE);
+    // Clear errors to allow form rebuild.
+    $form_state->clearErrors();
+    $form_state->setValidationComplete();
+  }
+
+  /**
+   * Ajax callback to show revision field.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   *
+   * @return \Drupal\Core\Ajax\AjaxResponse
+   *   Ajax Response.
+   */
+  public static function askForRevisionCallback(array $form, FormStateInterface $form_state) {
+
+    $response = new AjaxResponse();
+    // Hide "Ask for revision button".
+    $response->addCommand(new ReplaceCommand('.ask-for-revision-button', $form['actions']['ask_revision_in_tm']));
+    // Show revision message field.
+    $response->addCommand(new ReplaceCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
+
+    return $response;
+  }
+
+  /**
+   * Validation of revision message field.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   */
+  public static function sendRevisionRequestValidate(array &$form, FormStateInterface $form_state) {
+    if (empty(trim($form_state->getValue('revision_message')))) {
+      $form_state->setErrorByName($form['revision_message_wrapper']['revision_message']['#name'], t('Please enter revision message'));
+      $form_state->setRebuild();
+    }
+  }
+
+  /**
+   * Submit for revision message field.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   */
+  public static function sendRevisionRequestSubmit(array &$form, FormStateInterface $form_state) {
+    // Validation passed. Send revision request.
+    /** @var \Drupal\tmgmt\JobItemInterface $job_item */
+    $job_item = $form_state->getFormObject()->getEntity();
+    /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
+    $plugin = $job_item->getTranslatorPlugin();
+    $plugin->setTranslator($job_item->getTranslator());
+    $remote = tmgmt_textmaster_get_job_item_remote($job_item);
+    $document_id = $remote['document_id'];
+    $project_id = $remote['project_id'];
+    $message = $form_state->getValue('revision_message');
+    $result = $plugin->createTmSupportMessage($project_id, $document_id, $message);
+
+    if (!empty($result)) {
+      // Add messages.
+      drupal_set_message(t('Revision message was sent for Job item "@item_label".', [
+        '@item_label' => $job_item->label(),
+      ]));
+      $job_item->getJob()
+        ->addMessage('Revision message was sent for Document "@document_id".', [
+          '@document_id' => $document_id,
+        ]);
+      $form_state->set('revision_message_sent', TRUE);
+    }
+  }
+
+  /**
+   * Ajax callback to send revision message.
+   *
+   * @param array $form
+   *   Form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   FormState.
+   *
+   * @return \Drupal\Core\Ajax\AjaxResponse
+   *   Ajax Response.
+   */
+  public static function sendRevisionRequestCallback(array $form, FormStateInterface $form_state) {
+    // Check erorrs.
+    if (isset($form['revision_message_wrapper']['revision_message'])
+      && $form_state->getError($form['revision_message_wrapper']['revision_message'])) {
+      // If validation failed add error to response.
+      $response = new AjaxResponse();
+      $form['revision_message_wrapper']['status_messages'] = [
+        '#type' => 'status_messages',
+        '#weight' => 5,
+      ];
+      $response->addCommand(new HtmlCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
+
+      return $response;
+    }
+    // Validation passed. Rebuild the whole form as job item state was changed.
+    $response = new AjaxResponse();
+    // Show new messages in form.
+    $form['status_messages'] = [
+      '#type' => 'status_messages',
+    ];
+    $response->addCommand(new ReplaceCommand('#tmgmt-textmaster-job-item-form-wrapper', $form));
+    // Remove previous warning message about 7 days validation.
+    $response->addCommand(new RemoveCommand('div.messages--warning'));
+
+    return $response;
+
   }
 
   /**

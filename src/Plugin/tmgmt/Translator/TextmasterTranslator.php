@@ -16,6 +16,7 @@ use Drupal\tmgmt\TranslatorPluginBase;
 use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
+use function GuzzleHttp\Psr7\parse_query;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -450,8 +451,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       $options['body'] = $body;
     }
     else {
-      if ($method == 'GET') {
-        $options['query'] = $params;
+      if ($method == 'GET' && isset($params['query'])) {
+        $options['query'] = $params['query'];
       }
       else {
         $options['json'] = $params;
@@ -607,21 +608,24 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   Path for request.
    * @param string $result_key
    *   The array key for results.
+   * @param array $params
+   *   Request params.
    * @param array $previous_pages_result
    *   The array with previous pages values.
    *
    * @return array|int|null
    *   Result of the API request.
    */
-  public function allPagesResult($request_path, $result_key, array $previous_pages_result = []) {
-    $result = $this->sendApiRequest($request_path);
+  public function allPagesResult($request_path, $result_key, array $params = [], array $previous_pages_result = []) {
+    $result = $this->sendApiRequest($request_path, 'GET', $params);
     $all_pages_list = array_merge($result[$result_key], $previous_pages_result);
     if (isset($result['next_page'])) {
-      // Remove basic API path here to avoid duplication.
-      $next_page_base = reset(explode('?', $request_path));
-      $next_page_params = end(explode('?', $result['next_page']));
-      $next_page_path = $next_page_base . '?' . $next_page_params;
-      return $this->allPagesResult($next_page_path, $result_key, $all_pages_list);
+      // Prepare next page query.
+      $next_page_query = parse_url($result['next_page'], PHP_URL_QUERY);
+      $next_page_params = [
+        'query' => parse_query($next_page_query),
+      ];
+      return $this->allPagesResult($request_path, $result_key, $next_page_params, $all_pages_list);
     }
     return $all_pages_list;
   }
@@ -777,6 +781,28 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   }
 
   /**
+   * Get TextMaster document.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   * @param string $document_id
+   *   TextMaster document id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function getTmDocument($project_id, $document_id) {
+    try {
+      return $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not get the TextMaster Document: @error', ['@error' => $e->getMessage()]);
+    }
+    return [];
+  }
+
+  /**
    * Creates a new job at TextMaster.
    *
    * @param string $project_id
@@ -810,6 +836,61 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents', 'POST', $params);
 
     return $result['id'];
+  }
+
+  /**
+   * Complete TextMaster document.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   * @param string $document_id
+   *   TextMaster document id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function completeTmDocument($project_id, $document_id) {
+    $params = [
+      'satisfaction' => 'positive',
+      'message' => 'Well done!',
+    ];
+    try {
+      return $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id . '/complete', 'PUT', $params);
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not complete the TextMaster Document: @error', ['@error' => $e->getMessage()]);
+    }
+    return [];
+  }
+
+  /**
+   * Ask for document revision in TextMaster.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   * @param string $document_id
+   *   TextMaster document id.
+   * @param string $message
+   *   Revision message.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function createTmSupportMessage($project_id, $document_id, string $message) {
+    $params = [
+      'support_message' => [
+        'message' => $message,
+      ],
+    ];
+    try {
+      return $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id . '/support_messages', 'POST', $params);
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_textmaster')
+        ->error('Could not complete the TextMaster Document: @error', ['@error' => $e->getMessage()]);
+    }
+    return [];
   }
 
   /**
@@ -887,11 +968,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       // Prepare parameters for Job API (to get the job status).
       $document_id = $mapping->getRemoteIdentifier3();
       $project_id = $mapping->getRemoteIdentifier2();
-      $info = [];
-      try {
-        $info = $translator_plugin->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
-      }
-      catch (TMGMTException $e) {
+      $info = $translator_plugin->getTmDocument($project_id, $document_id);
+      if (empty($info)) {
         $job->addMessage('Error fetching the job item: @job_item. TextMaster document @document_id not found.',
           [
             '@job_item' => $job_item->label(),
