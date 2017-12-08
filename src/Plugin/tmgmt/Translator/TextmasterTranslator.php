@@ -95,6 +95,9 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $this->setTranslator($translator);
     try {
       $supported_languages = $this->sendApiRequest('v1/public/languages');
+      if (!$supported_languages) {
+        return $supported_remote_languages;
+      }
       foreach ($supported_languages['languages'] as $language) {
         if (!preg_match('/[-]/', $language['code'])) {
           continue;
@@ -106,7 +109,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       }
     }
     catch (\Exception $e) {
-      // Ignore exception, nothing we can do.
+      $message = t('Exception occurred while getting remote languages: @error.', [
+        '@error' => $e,
+      ]);
+      \Drupal::logger('tmgmt_textmaster')->error($message);
     }
     asort($supported_remote_languages);
     return $supported_remote_languages;
@@ -888,7 +894,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
-        ->error('Could not complete the TextMaster Document: @error', ['@error' => $e->getMessage()]);
+        ->error('Could not create TextMaster support message: @error', ['@error' => $e->getMessage()]);
     }
     return [];
   }
