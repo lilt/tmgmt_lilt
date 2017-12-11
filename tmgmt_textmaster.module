@@ -132,8 +132,7 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
     // Cannot ask for revision if job item is not in_review status.
     return;
   }
-  // Check for textmaster Document status. Revision message will be shown
-  // only if TextMaster document is in status "in_review".
+  // Check for TextMaster Document status.
   /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $plugin */
   $plugin = $job_item->getTranslatorPlugin();
   $plugin->setTranslator($job_item->getTranslator());
@@ -143,8 +142,26 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
   $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
   if (empty($tm_document_data)
     || !array_key_exists('status', $tm_document_data)
-    || $tm_document_data['status'] != 'in_review'
   ) {
+    return;
+  }
+  if (!$form_state->isRebuilding()) {
+
+    // Add messages about Document status in TextMaster.
+    if ($tm_document_data['status'] === 'in_review') {
+      drupal_set_message(t('If content is not accepted within 7 days, it will be automatically validated by TextMaster with no possible revision request.'), 'warning');
+    }
+    elseif ($tm_document_data['status'] === 'incomplete') {
+      drupal_set_message(t('Please note, that TextMaster Document for this job item is in status "incomplete" and you wont be able to accept the translation until TextMaster author finishes his work.'), 'warning');
+    }
+    elseif ($tm_document_data['status'] === 'completed') {
+      drupal_set_message(t('Please note, that TextMaster Document for this job item is already completed.'), 'warning');
+    }
+  }
+
+  // Revision message can be sent only if TextMaster document is in status
+  // "in_review".
+  if ($tm_document_data['status'] != 'in_review') {
     return;
   }
 
