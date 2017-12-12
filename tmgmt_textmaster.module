@@ -152,10 +152,10 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
       drupal_set_message(t('If content is not accepted within 7 days, it will be automatically validated by TextMaster with no possible revision request.'), 'warning');
     }
     elseif ($tm_document_data['status'] === 'incomplete') {
-      drupal_set_message(t('Please note, that TextMaster Document for this job item is in status "incomplete" and you wont be able to accept the translation until TextMaster author finishes his work.'), 'warning');
+      drupal_set_message(t('Please note that TextMaster Document for this job item is in status "incomplete" and you wont be able to accept the translation until TextMaster author finishes his work.'), 'warning');
     }
     elseif ($tm_document_data['status'] === 'completed') {
-      drupal_set_message(t('Please note, that TextMaster Document for this job item is already completed.'), 'warning');
+      drupal_set_message(t('Please note that TextMaster Document for this job item is already completed.'), 'warning');
     }
   }
 
