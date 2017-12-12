@@ -89,7 +89,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    * {@inheritdoc}
    */
   public function checkoutSettingsForm(array $form, FormStateInterface $form_state, JobInterface $job) {
-    if (!$form_state->isRebuilding()) {
+    if ($form_state->isRebuilding() && $form_state->getTriggeringElement()['#value'] == 'textmaster') {
       drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
     }
 
@@ -141,7 +141,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#options' => $templates,
       '#description' => t('Select a TextMaster project template.'),
       '#required' => TRUE,
-      '#default_value' => $job->settings->templates_wrapper['project_template'],
+      '#default_value' => isset($job->settings->templates_wrapper['project_template']) ? $job->settings->templates_wrapper['project_template'] : '',
     ];
     // Add template link.
     $settings['templates_wrapper']['add_template'] = [
@@ -439,11 +439,11 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    *   Ajax Response.
    */
   public static function sendRevisionRequestCallback(array $form, FormStateInterface $form_state) {
+    $response = new AjaxResponse();
     // Check erorrs.
     if (isset($form['revision_message_wrapper']['revision_message'])
       && $form_state->getError($form['revision_message_wrapper']['revision_message'])) {
       // If validation failed add error to response.
-      $response = new AjaxResponse();
       $form['revision_message_wrapper']['status_messages'] = [
         '#type' => 'status_messages',
         '#weight' => 5,
@@ -452,13 +452,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
       return $response;
     }
-    // Validation passed. Rebuild the whole form as job item state was changed.
-    $response = new AjaxResponse();
-    // Show new messages in form.
-    $form['status_messages'] = [
+    // Validation passed. Rebuild the revision_message_wrapper.
+    // Show status messages instead of revision message field.
+    $form['revision_message_wrapper']['status_messages'] = [
       '#type' => 'status_messages',
     ];
-    $response->addCommand(new ReplaceCommand('#tmgmt-textmaster-job-item-form-wrapper', $form));
+    unset($form['revision_message_wrapper']['request_revision'], $form['revision_message_wrapper']['revision_message']);
+    $response->addCommand(new ReplaceCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
     // Remove previous warning message about 7 days validation.
     $response->addCommand(new RemoveCommand('div.messages--warning'));
 
