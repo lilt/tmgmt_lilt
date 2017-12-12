@@ -57,7 +57,12 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
     $this->changeField('select[id^="edit-settings-templates-wrapper-project-template"]', parent::SIMPLE_TEMPLATE_ID);
     $this->assertSession()->pageTextContains(t('Test Template EN(GB)_FR(FR) -- NO autolaunch'));
 
+    // Update templates.
+    $this->clickButton('input[id^="edit-settings-update-template-list"]');
+    $this->assertSession()->assertWaitOnAjaxRequest();
+
     $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'new_job_creation_filled_form.png');
+    $this->assertSession()->pageTextContains(t('Test Template EN(GB)_FR(FR) -- NO autolaunch'));
 
     // Submit job to TextMaster.
     $this->clickButton('input[id^="edit-submit"]');
