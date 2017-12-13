@@ -2,7 +2,8 @@ TMGMT TextMaster Tests
 ----------------------
 
 
-In order to run Functional Javascript Tests execute from docroot:
+In order to run Functional Javascript Tests you should enable module
+ simpletest and then execute from docroot:
 1. phantomjs --ssl-protocol=any \
  --ignore-ssl-errors=true \
  ../vendor/jcalderonzumba/gastonjs/src/Client/main.js \
@@ -11,7 +12,7 @@ In order to run Functional Javascript Tests execute from docroot:
   export CREATE_TEST_SCREENSHOTS=1
 3. php core/scripts/run-tests.sh \
     --url http://your.site.com/ \
-    --module tmgmt_textmaster --verbose --browser
+    --module tmgmt_textmaster --verbose
     
 See https://www.drupal.org/docs/8/phpunit/phpunit-javascript-testing-tutorial
 for more information.

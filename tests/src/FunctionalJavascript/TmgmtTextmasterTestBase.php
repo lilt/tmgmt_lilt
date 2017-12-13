@@ -14,13 +14,6 @@ use Drupal\field\Entity\FieldStorageConfig;
 abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
 
   /**
-   * Path to create screenshots.
-   *
-   * @var string
-   */
-  protected $screenshotPath = '/sites/simpletest/tmgmt_textmaster/';
-
-  /**
    * Flag indicating whether screenshots should be created.
    *
    * Defaults to FALSE.
@@ -30,11 +23,9 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
   protected $createScreenshots = FALSE;
 
   /**
-   * A tmgmt_translator.
-   *
-   * @var TranslatorInterface
+   * Path to create screenshots.
    */
-  protected $translator;
+  const SCREENSHOT_PATH = '/sites/simpletest/tmgmt_textmaster/';
 
   /**
    * TextMaster API URL.
@@ -42,17 +33,12 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
   const API_URL = 'http://api.textmaster.com';
 
   /**
-   * TextMaster API credantials.
+   * TextMaster API credentials.
    */
   const API_CREDENTIALS = [
     'key' => 'LxgLQpmVJiU',
     'secret' => 'p_PDvxf7uMM',
   ];
-
-  /**
-   * TextMaster ID for template with autolaunch setting enabled.
-   */
-  const AUTOLAUNCH_TEMPLATE_ID = 'cfcafa05-c430-42d5-baf0-685aafbf1929';
 
   /**
    * TextMaster ID for template with autolaunch setting disabled.
@@ -86,8 +72,8 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
     parent::setUp();
 
     // Determine whether screenshots should be created.
-    if (!empty(getenv('CREATE_TEST_SCREENSHOTS'))) {
-      $this->createScreenshots = getenv('CREATE_TEST_SCREENSHOTS');
+    if (!empty($create_screenshots = getenv('CREATE_TEST_SCREENSHOTS'))) {
+      $this->createScreenshots = (bool) $create_screenshots;
     }
 
     if ($this->createScreenshots) {
@@ -104,10 +90,11 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
    * {@inheritdoc}
    */
   protected function createScreenshot($filename, $set_background_color = TRUE) {
+    $file_path = \Drupal::root() . static::SCREENSHOT_PATH . $filename;
     // Create screenshots only if CREATE_TEST_SCREENSHOTS=1 is set for
     // environment.
-    if (!empty($this->createScreenshots)) {
-      parent::createScreenshot($filename, $set_background_color);
+    if ($this->createScreenshots) {
+      parent::createScreenshot($file_path, $set_background_color);
     }
   }
 
@@ -115,20 +102,16 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
    * Check does screenshot path exist and create if it's necessary.
    */
   private function checkScreenshotPathExist() {
-    if (file_exists(\Drupal::root() . $this->screenshotPath)) {
+    if (file_exists(\Drupal::root() . static::SCREENSHOT_PATH)) {
       return;
     }
-    $this->verbose(\Drupal::root() . $this->screenshotPath);
-    mkdir(\Drupal::root() . $this->screenshotPath, 0777, TRUE);
+    mkdir(\Drupal::root() . static::SCREENSHOT_PATH, 0777, TRUE);
   }
 
   /**
    * Base steps for all tmgmt_textmaster javascript tests.
    */
   protected function baseTestSteps() {
-    if ($this->loggedInUser) {
-      $this->drupalLogout();
-    }
     $admin_account = $this->drupalCreateUser([
       'administer tmgmt',
       'access site reports',
@@ -143,7 +126,7 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
     // Configure TextMaster Provider with right credentials.
     $this->setTextmasterCredentials(TRUE);
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'config_right_credentials_ajax.png');
+    $this->createScreenshot('config_right_credentials_ajax.png');
     $this->assertSession()->pageTextContains(t('Successfully connected!'));
 
     // Change Remote languages mappings and save settings.
@@ -151,7 +134,7 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
     $this->changeField('select[id^="edit-remote-languages-mappings-fr"]', static::LANG_MAPPING['fr']);
     $this->clickButton('input[id^="edit-submit"]');
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'configuration_updated.png');
+    $this->createScreenshot('configuration_updated.png');
     $this->assertSession()->pageTextContains(t('TextMaster configuration has been updated.'));
   }
 
@@ -170,6 +153,7 @@ abstract class TmgmtTextmasterTestBase extends JavascriptTestBase {
     $api_secret = $right_credentials ? static::API_CREDENTIALS['secret'] : 'wrong_secret';
 
     // Enter Api key and secret.
+    $this->changeField('input[id^="edit-settings-textmaster-service-url"]', static::API_URL);
     $this->changeField('input[id^="edit-settings-textmaster-api-key"]', $api_key);
     $this->changeField('input[id^="edit-settings-textmaster-api-secret"]', $api_secret);
     $this->click('input[id^="edit-settings-connect"]');

@@ -37,14 +37,14 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
     $this->drupalGet('admin/tmgmt/sources');
     $this->assertSession()->statusCodeEquals(200);
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'translation_sources.png');
+    $this->createScreenshot('translation_sources.png');
     $this->assertSession()->pageTextContains(t('Page for test translation En'));
 
     // Select created node and request translation.
     $this->changeField('input[id^="edit-items-1"]', 1);
     $this->clickButton('input[id^="edit-submit"]');
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'new_job_creation_page.png');
+    $this->createScreenshot('new_job_creation_page.png');
     $this->assertSession()->pageTextContains(t('Configure provider'));
 
     // Set TextMaster Translator.
@@ -61,7 +61,7 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
     $this->clickButton('input[id^="edit-settings-update-template-list"]');
     $this->assertSession()->assertWaitOnAjaxRequest();
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'new_job_creation_filled_form.png');
+    $this->createScreenshot('new_job_creation_filled_form.png');
     $this->assertSession()->pageTextContains(t('Test Template EN(GB)_FR(FR) -- NO autolaunch'));
 
     // Submit job to TextMaster.
@@ -79,14 +79,14 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
     $this->assertNotEmpty($button);
     $button->click();
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'job_actions.png');
+    $this->createScreenshot('job_actions.png');
     $this->assertSession()->pageTextContains(t('View on TextMaster'));
     $this->assertSession()->pageTextContains(t('Launch'));
 
     // Visit Job page and check job messages.
     $this->clickLink(t('Submit'));
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'job_page.png');
+    $this->createScreenshot('job_page.png');
     $this->assertSession()->pageTextContains(t('Please note that Drupal word count may differ from TextMaster'));
     $this->assertSession()->pageTextContains(t('Created a new Document in TextMaster with the id'));
     $this->assertSession()->pageTextContains(t('Created a new Project in TextMaster with the id'));

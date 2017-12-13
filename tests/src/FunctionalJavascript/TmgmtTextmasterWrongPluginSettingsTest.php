@@ -23,7 +23,7 @@ class TmgmtTextmasterWrongPluginSettingsTest extends TmgmtTextmasterTestBase {
     // Configure TextMaster Provider with wrong credentials.
     $this->setTextmasterCredentials(FALSE);
 
-    $this->createScreenshot(\Drupal::root() . $this->screenshotPath . 'config_wrong_credentials_ajax.png');
+    $this->createScreenshot('config_wrong_credentials_ajax.png');
     $this->assertSession()->pageTextContains(t('Authentication failed. Please check the API key and secret.'));
   }
 
