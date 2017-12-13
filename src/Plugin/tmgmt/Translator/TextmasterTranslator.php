@@ -547,12 +547,21 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   public function createTmProject(JobInterface $job) {
     // Prepare parameters for Project API.
     $name = $job->get('label')->value ?: 'Drupal TMGMT project ' . $job->id();
+    $callback_url = Url::fromRoute('tmgmt_textmaster.project_finalized_callback')
+      ->setAbsolute()
+      ->toString();
     $params = [
       'project' => [
         'name' => $name,
         'activity_name' => 'translation',
         'api_template_id' => $job->settings->templates_wrapper['project_template'],
         'category' => 'C033',
+        'callback' => [
+          'project_finalized' => [
+            "url" => $callback_url,
+            "format" => "json",
+          ],
+        ],
       ],
     ];
     $result = $this->sendApiRequest('v1/clients/projects', 'POST', $params);
@@ -822,7 +831,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   TextMaster Document ID.
    */
   public function createTmDocument($project_id, $remote_file_url, $document_title) {
-    $callback_url = Url::fromRoute('tmgmt_textmaster.callback')
+    $callback_url = Url::fromRoute('tmgmt_textmaster.in_review_callback')
       ->setAbsolute()
       ->toString();
     $params = [

@@ -122,11 +122,6 @@ function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_stat
     return;
   }
 
-  // Add prefix and suffix for whole form to replace it after sending revision
-  // message.
-  $form['#prefix'] = '<div id="tmgmt-textmaster-job-item-form-wrapper">';
-  $form['#suffix'] = '</div>';
-
   if (!$job_item->isState(JobItemInterface::STATE_REVIEW)
   ) {
     // Cannot ask for revision if job item is not in_review status.

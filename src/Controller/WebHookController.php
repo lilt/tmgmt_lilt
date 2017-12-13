@@ -4,6 +4,7 @@ namespace Drupal\tmgmt_textmaster\Controller;
 
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\Entity\RemoteMapping;
 use Drupal\tmgmt\TMGMTException;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,7 +24,7 @@ class WebHookController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\Response
    *   The response to return.
    */
-  public function callback(Request $request) {
+  public function inReviewCallback(Request $request) {
     $logger = $this->getLogger('tmgmt_textmaster');
     try {
       $logger->debug('Request received %request.', ['%request' => $request]);
@@ -94,6 +95,73 @@ class WebHookController extends ControllerBase {
       $logger->error($e->getMessage());
     }
     return new Response('OK');
+  }
+
+  /**
+   * Handles the finalization of TextMaster Project to set the correct price.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request to handle.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response to return.
+   */
+  public function projectFinalizedCallback(Request $request) {
+    $logger = $this->getLogger('tmgmt_textmaster');
+    try {
+      $logger->debug('Request received %request.', ['%request' => $request]);
+      $logger->debug('Request payload: ' . $request->getContent());
+
+      $json_content = json_decode($request->getContent());
+      $project_id = $json_content->id;
+      $total_costs = $json_content->total_costs;
+
+      if (!isset($project_id) || !isset($total_costs)) {
+        // Nothing to do here.
+        $logger->warning('Could not find TextMaster project id or total costs in callback request.');
+        return new Response('Could not find TextMaster project id or total costs in callback request.');
+      }
+
+      // Get mappings between the job and project id.
+      $remotes = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id);
+      if (empty($remotes)) {
+        // Didn't find a Job with this Project ID. Probably it was deleted.
+        $logger->warning('Job with TextMaster Project id "%id" not found.', ['%id' => $project_id]);
+        return new Response(new FormattableMarkup('Project %id not found.', ['%id' => $project_id]), 404);
+      }
+
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      $remote = reset($remotes);
+      $job = $remote->getJob();
+      $cost_in_currency = reset($total_costs);
+      $price = round($cost_in_currency->amount, 2) . ' ' . $cost_in_currency->currency;
+
+      // Set the project price.
+      $this->setProjectPriceForJob($job, $price);
+    }
+    catch (\Exception $e) {
+      $logger->error($e->getMessage());
+    }
+    return new Response('OK');
+  }
+
+  /**
+   * Set TextMaster Project price for job.
+   *
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   TMGMT Job.
+   * @param string $price
+   *   TextMaster Project price.
+   *
+   * @return bool
+   *   TRUE if success.
+   */
+  public function setProjectPriceForJob(JobInterface $job, $price) {
+    $settings = $job->settings->getValue();
+    $settings[0]['project_price'] = $price;
+    $job->settings->setValue($settings);
+    $job->save();
+    return TRUE;
   }
 
 }
