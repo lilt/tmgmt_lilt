@@ -1,8 +1,17 @@
-tmgmt_textmaster.callback:
-  path: /tmgmt_textmaster_callback
+tmgmt_textmaster.in_review_callback:
+  path: /tmgmt_textmaster_in_review_callback
   defaults:
-    _title: 'Remote Callback'
-    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::callback'
+    _title: 'in_review Callback'
+    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::inReviewCallback'
+  requirements:
+# Allow access for TextMaster API.
+    _access: 'TRUE'
+
+tmgmt_textmaster.project_finalized_callback:
+  path: /tmgmt_textmaster_project_finalized_callback
+  defaults:
+    _title: 'project_finalized Callback'
+    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::projectFinalizedCallback'
   requirements:
 # Allow access for TextMaster API.
     _access: 'TRUE'
