@@ -110,6 +110,17 @@ function tmgmt_textmaster_form_tmgmt_job_abort_form_alter(&$form) {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
+function tmgmt_textmaster_form_views_exposed_form_alter(&$form, $form_state, $form_id) {
+  $view = $form_state->get('view');
+  if ($view->id() == 'tmgmt_job_overview') {
+    // Add warning message about word count.
+    drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
 function tmgmt_textmaster_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
   /** @var Drupal\tmgmt\Entity\JobItem $job_item */
   $job_item = $form_state->getFormObject()->getEntity();
