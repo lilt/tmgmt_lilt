@@ -86,7 +86,7 @@ class WebHookController extends ControllerBase {
   }
 
   /**
-   * Handles the finalization of TextMaster Project to set the correct price.
+   * Handles the finalization of documents word count to finalize the project.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The request to handle.
@@ -217,7 +217,7 @@ class WebHookController extends ControllerBase {
   }
 
   /**
-   * Get TMGMT Job by TM project and document ids.
+   * Get TMGMT RemoteMapping by TM project and document ids.
    *
    * @param string $project_id
    *   TextMaster project id.
