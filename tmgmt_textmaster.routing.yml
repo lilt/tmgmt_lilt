@@ -7,6 +7,15 @@ tmgmt_textmaster.in_review_callback:
 # Allow access for TextMaster API.
     _access: 'TRUE'
 
+tmgmt_textmaster.word_count_finished_callback:
+  path: /tmgmt_textmaster_word_count_finished_callback
+  defaults:
+    _title: 'word_count_finished Callback'
+    _controller: '\Drupal\tmgmt_textmaster\Controller\WebHookController::wordCountFinishedCallback'
+  requirements:
+# Allow access for TextMaster API.
+    _access: 'TRUE'
+
 tmgmt_textmaster.project_finalized_callback:
   path: /tmgmt_textmaster_project_finalized_callback
   defaults:
