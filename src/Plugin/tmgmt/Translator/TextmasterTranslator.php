@@ -220,11 +220,12 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           'FileStateVersion' => 1,
           'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
           'TemplateAutoLaunch' => $translator_plugin->isTemplateAutoLaunch($job->settings->templates_wrapper['project_template']),
+          'WordCountFinished' => FALSE,
         ],
       ]);
       $remote_mapping->save();
       $job->addMessage('Created a new Document in TextMaster with the id: @id for Job Item: @item_label', [
-        '@id' => $project_id,
+        '@id' => $document_id,
         '@item_label' => $job_item->label(),
       ], 'debug');
 
@@ -278,11 +279,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
 
     if (count($errors) == 0 && !empty($created)) {
 
-      // Everything went OK. We can Finalize the project.
-      $translator_plugin->finalizeTmProject($results['project_id']);
-      $job->addMessage('A TextMaster Project with the id: @id was finalized', [
-        '@id' => $results['project_id'],
-      ], 'debug');
       // Set Job state.
       if (!$job->isRejected()) {
         $mappings = $job->getRemoteMappings();
@@ -831,7 +827,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   TextMaster Document ID.
    */
   public function createTmDocument($project_id, $remote_file_url, $document_title) {
-    $callback_url = Url::fromRoute('tmgmt_textmaster.in_review_callback')
+    $in_review_url = Url::fromRoute('tmgmt_textmaster.in_review_callback')
+      ->setAbsolute()
+      ->toString();
+    $word_count_url = Url::fromRoute('tmgmt_textmaster.word_count_finished_callback')
       ->setAbsolute()
       ->toString();
     $params = [
@@ -842,7 +841,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'perform_word_count' => 'true',
         'callback' => [
           'in_review' => [
-            "url" => $callback_url,
+            "url" => $in_review_url,
+            "format" => "json",
+          ],
+          'word_count_finished' => [
+            "url" => $word_count_url,
             "format" => "json",
           ],
         ],

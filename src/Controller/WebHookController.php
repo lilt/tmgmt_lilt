@@ -27,7 +27,7 @@ class WebHookController extends ControllerBase {
   public function inReviewCallback(Request $request) {
     $logger = $this->getLogger('tmgmt_textmaster');
     try {
-      $logger->debug('Request received %request.', ['%request' => $request]);
+      $logger->debug('Request received @request.', ['@request' => $request]);
       $logger->debug('Request payload: ' . $request->getContent());
 
       $json_content = json_decode($request->getContent());
@@ -42,27 +42,15 @@ class WebHookController extends ControllerBase {
         return new Response('Could not get TextMaster project id, document id, status or translated file url from request.');
       }
 
-      // Get mappings between the job items and project Document IDs.
-      $remotes = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id);
-      if (empty($remotes)) {
-        // Didn't find a Job with this Project ID. Probably it was deleted.
-        $logger->warning('Job with TextMaster Project id "%id" not found.', ['%id' => $project_id]);
-        return new Response(new FormattableMarkup('Project %id not found.', ['%id' => $project_id]), 404);
-      }
-
-      $remote = NULL;
-      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote_candidate */
-      foreach ($remotes as $remote_candidate) {
-        if ($remote_candidate->getRemoteIdentifier3() == $document_id) {
-          $remote = $remote_candidate;
-          break;
-        }
-      }
-
-      if (!$remote) {
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      $remote = $this->getJobItemRemoteByTmData($project_id, $document_id);
+      if (empty($remote)) {
         // Didn't find JobItem with this Document ID. Probably it was deleted.
-        $logger->warning('Job Item with TextMaster Document id "%id" not found.', ['%id' => $document_id]);
-        return new Response(new FormattableMarkup('Document %id not found.', ['%id' => $document_id]), 404);
+        $logger->warning('Job Item with TextMaster Document id "@document_id" and Project id "@project_id" not found.', [
+          '@document_id' => $document_id,
+          '@project_id' => $project_id,
+        ]);
+        return new Response(new FormattableMarkup('Document @id not found.', ['@id' => $document_id]), 404);
       }
 
       $job = $remote->getJob();
@@ -70,13 +58,13 @@ class WebHookController extends ControllerBase {
       $translator_plugin = $job->getTranslator()->getPlugin();
       $translator_plugin->setTranslator($job->getTranslator());
       if (!$translator_plugin->isRemoteTranslationCompleted($status)) {
-        $logger->warning('Invalid document status %status: project %project_id, document %document_id',
+        $logger->warning('Invalid document status @status: project @project_id, document @document_id',
           [
-            '%status' => $status,
-            '%project_id' => $project_id,
-            '%document_id' => $document_id,
+            '@status' => $status,
+            '@project_id' => $project_id,
+            '@document_id' => $document_id,
           ]);
-        return new Response(new FormattableMarkup('Unknown status for the Document %id.', ['%id' => $document_id]), 400);
+        return new Response(new FormattableMarkup('Unknown status for the Document @id.', ['@id' => $document_id]), 400);
       }
 
       try {
@@ -106,10 +94,74 @@ class WebHookController extends ControllerBase {
    * @return \Symfony\Component\HttpFoundation\Response
    *   The response to return.
    */
+  public function wordCountFinishedCallback(Request $request) {
+    $logger = $this->getLogger('tmgmt_textmaster');
+    try {
+      $logger->debug('Request received @request.', ['@request' => $request]);
+      $logger->debug('Request payload: ' . $request->getContent());
+
+      $json_content = json_decode($request->getContent());
+      $document_id = $json_content->id;
+      $project_id = $json_content->project_id;
+      $word_count = $json_content->word_count;
+
+      if (!isset($project_id) || !isset($document_id) || !isset($word_count)) {
+        // Nothing to do here.
+        $logger->warning('Could not find TextMaster project id, document id or word count in callback request.');
+        return new Response('Could not find TextMaster project id, document id or word count in callback request.');
+      }
+
+      /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
+      $remote = $this->getJobItemRemoteByTmData($project_id, $document_id);
+      if (empty($remote)) {
+        // Didn't find JobItem with this Document ID. Probably it was deleted.
+        $logger->warning('Job Item with TextMaster Document id "@document_id" and Project id "@project_id" not found.', [
+          '@document_id' => $document_id,
+          '@project_id' => $project_id,
+        ]);
+        return new Response(new FormattableMarkup('Document @id not found.', ['@id' => $document_id]), 404);
+      }
+
+      // Set WordCountFinished in JobItem remote data.
+      $remote_data = $remote->remote_data->getValue();
+      $remote_data[0]['WordCountFinished'] = TRUE;
+      $remote->remote_data->setValue($remote_data);
+      $remote->save();
+      $job = $remote->getJob();
+
+      // Check if word count was finished for all Job Items of this Job.
+      if ($this->isWordCountFinishedForJob($job)) {
+
+        // Finalize the project.
+        /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
+        $translator_plugin = $job->getTranslator()->getPlugin();
+        $translator_plugin->setTranslator($job->getTranslator());
+        $translator_plugin->finalizeTmProject($project_id);
+        $job->addMessage('TextMaster Project with the id: @id was finalized', [
+          '@id' => $project_id,
+        ], 'debug');
+      }
+    }
+    catch (\Exception $e) {
+      $logger->error($e->getMessage());
+    }
+
+    return new Response('OK');
+  }
+
+  /**
+   * Handles the finalization of TextMaster Project to set the correct price.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The request to handle.
+   *
+   * @return \Symfony\Component\HttpFoundation\Response
+   *   The response to return.
+   */
   public function projectFinalizedCallback(Request $request) {
     $logger = $this->getLogger('tmgmt_textmaster');
     try {
-      $logger->debug('Request received %request.', ['%request' => $request]);
+      $logger->debug('Request received @request.', ['@request' => $request]);
       $logger->debug('Request payload: ' . $request->getContent());
 
       $json_content = json_decode($request->getContent());
@@ -126,8 +178,8 @@ class WebHookController extends ControllerBase {
       $remotes = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id);
       if (empty($remotes)) {
         // Didn't find a Job with this Project ID. Probably it was deleted.
-        $logger->warning('Job with TextMaster Project id "%id" not found.', ['%id' => $project_id]);
-        return new Response(new FormattableMarkup('Project %id not found.', ['%id' => $project_id]), 404);
+        $logger->warning('Job with TextMaster Project id "@id" not found.', ['@id' => $project_id]);
+        return new Response(new FormattableMarkup('Project @id not found.', ['@id' => $project_id]), 404);
       }
 
       /** @var \Drupal\tmgmt\Entity\RemoteMapping $remote */
@@ -161,6 +213,52 @@ class WebHookController extends ControllerBase {
     $settings[0]['project_price'] = $price;
     $job->settings->setValue($settings);
     $job->save();
+    return TRUE;
+  }
+
+  /**
+   * Get TMGMT Job by TM project and document ids.
+   *
+   * @param string $project_id
+   *   TextMaster project id.
+   * @param string $document_id
+   *   TextMaster document id.
+   *
+   * @return array|\Drupal\tmgmt\Entity\RemoteMapping
+   *   Remote mapping.
+   */
+  public function getJobItemRemoteByTmData($project_id, $document_id) {
+    // Get mappings between the job items and project Document IDs.
+    $remotes = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id, $document_id);
+    $logger = $this->getLogger('tmgmt_textmaster');
+    if (empty($remotes)) {
+      // Didn't find JobItem with this Document ID and Project ID.
+      // Probably it was deleted.
+      $logger->warning('Job Item with TextMaster Document id "@id" not found.', ['@id' => $document_id]);
+      return [];
+    }
+
+    return reset($remotes);
+  }
+
+  /**
+   * Check if word count was finished for all Job Items of this Job.
+   *
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   TMGMT Job.
+   *
+   * @return bool
+   *   TRUE if was finished.
+   */
+  public function isWordCountFinishedForJob(JobInterface $job) {
+    foreach ($job->getItems() as $item) {
+      // Check WordCountFinished in remote data.
+      $mappings = $item->getRemoteMappings();
+      $remote = reset($mappings);
+      if (!$remote->remote_data->WordCountFinished) {
+        return FALSE;
+      }
+    }
     return TRUE;
   }
 
