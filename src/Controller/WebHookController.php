@@ -136,10 +136,7 @@ class WebHookController extends ControllerBase {
         /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
         $translator_plugin = $job->getTranslator()->getPlugin();
         $translator_plugin->setTranslator($job->getTranslator());
-        $translator_plugin->finalizeTmProject($project_id);
-        $job->addMessage('TextMaster Project with the id: @id was finalized', [
-          '@id' => $project_id,
-        ], 'debug');
+        $translator_plugin->finalizeTmProject($project_id, $job);
       }
     }
     catch (\Exception $e) {

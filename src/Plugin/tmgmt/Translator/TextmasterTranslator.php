@@ -481,34 +481,34 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         throw new TMGMTException('Unable to connect to TextMaster API due to following error: @error', ['@error' => $e->getMessage()], $e->getCode());
       }
       $response = $e->getResponse();
-      \Drupal::logger('tmgmt_textmaster')->error('%method Request to %url:<br>
+      \Drupal::logger('tmgmt_textmaster')->error('@method Request to @url:<br>
           <ul>
-              <li>Request: %request</li>
-              <li>Response: %response</li>
+              <li>Request: @request</li>
+              <li>Response: @response</li>
           </ul>
           ', [
-            '%method' => $method,
-            '%url' => $url,
-            '%request' => $e->getRequest()->getBody()->getContents(),
-            '%response' => $response->getBody()->getContents(),
+            '@method' => $method,
+            '@url' => $url,
+            '@request' => $e->getRequest()->getBody()->getContents(),
+            '@response' => $response->getBody()->getContents(),
           ]
       );
       if ($code) {
         return $response->getStatusCode();
       }
-      throw new TMGMTException('Unable to connect to TextMaster API due to following error: @error', ['@error' => $response->getReasonPhrase()], $response->getStatusCode());
+      throw new TMGMTException('Unable to connect to TextMaster API due to following error: @error', ['@error' => $response->getBody()->getContents()], $response->getStatusCode());
     }
     $received_data = $response->getBody()->getContents();
-    \Drupal::logger('tmgmt_textmaster')->debug('%method Request to %url:<br>
+    \Drupal::logger('tmgmt_textmaster')->debug('@method Request to @url:<br>
           <ul>
-              <li>Request: %request</li>
-              <li>Response: %response</li>
+              <li>Request: @request</li>
+              <li>Response: @response</li>
           </ul>
           ', [
-            '%method' => $method,
-            '%url' => $url,
-            '%request' => json_encode($options),
-            '%response' => $received_data,
+            '@method' => $method,
+            '@url' => $url,
+            '@request' => json_encode($options),
+            '@response' => $received_data,
           ]
     );
     if ($code) {
@@ -646,18 +646,27 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @param string $project_id
    *   TextMaster project id.
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   TMGMT Job.
    *
    * @return array|int|null|false
    *   Result of the API request or FALSE.
    */
-  public function finalizeTmProject($project_id) {
+  public function finalizeTmProject($project_id, JobInterface $job) {
     try {
       $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
+      $job->addMessage('TextMaster Project with the id: @id was finalized', [
+        '@id' => $project_id,
+      ], 'debug');
       return $result;
     }
     catch (TMGMTException $e) {
+      $job->addMessage('Could not finalize the TextMaster Project @id ( @error )', [
+        '@id' => $project_id,
+        '@error' => $e->getMessage(),
+      ], 'debug');
       \Drupal::logger('tmgmt_textmaster')
-        ->error('Could not get the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+        ->error('Could not finalize the TextMaster Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
   }
