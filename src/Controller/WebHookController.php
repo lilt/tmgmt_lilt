@@ -251,7 +251,7 @@ class WebHookController extends ControllerBase {
     foreach ($job->getItems() as $item) {
       // Check WordCountFinished in remote data.
       $mappings = $item->getRemoteMappings();
-      $remote = reset($mappings);
+      $remote = end($mappings);
       if (!$remote->remote_data->WordCountFinished) {
         return FALSE;
       }
