@@ -661,10 +661,6 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       return $result;
     }
     catch (TMGMTException $e) {
-      $job->addMessage('Could not finalize TextMaster Project with the id: @id ( @error )', [
-        '@id' => $project_id,
-        '@error' => $e->getMessage(),
-      ], 'debug');
       \Drupal::logger('tmgmt_textmaster')
         ->error('Could not finalize TextMaster Project with the id: @id ( @error )', [
           '@id' => $project_id,
