@@ -655,18 +655,21 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
   public function finalizeTmProject($project_id, JobInterface $job) {
     try {
       $result = $this->sendApiRequest('v1/clients/projects/' . $project_id . '/finalize', 'PUT', []);
-      $job->addMessage('TextMaster Project with the id: @id was finalized', [
+      $job->addMessage('Finalization request was sent for TextMaster Project with the id: @id', [
         '@id' => $project_id,
       ], 'debug');
       return $result;
     }
     catch (TMGMTException $e) {
-      $job->addMessage('Could not finalize the TextMaster Project @id ( @error )', [
+      $job->addMessage('Could not finalize TextMaster Project with the id: @id ( @error )', [
         '@id' => $project_id,
         '@error' => $e->getMessage(),
       ], 'debug');
       \Drupal::logger('tmgmt_textmaster')
-        ->error('Could not finalize the TextMaster Project: @error', ['@error' => $e->getMessage()]);
+        ->error('Could not finalize TextMaster Project with the id: @id ( @error )', [
+          '@id' => $project_id,
+          '@error' => $e->getMessage(),
+        ]);
     }
     return FALSE;
   }
