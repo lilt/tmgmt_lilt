@@ -20,8 +20,6 @@ use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
  */
 class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
-  const TEXTMASTER_APPLICATION_URL = 'https://www.app.sandbox.textmaster.com';
-
   /**
    * {@inheritdoc}
    */
@@ -30,12 +28,14 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
-    $tm_api_key_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/api_info')->toString();
+    $service_url = $translator->getSetting('textmaster_service_url');
+    $app_url = tmgmt_textmaster_get_app_url($service_url);
+    $tm_api_key_url = Url::fromUri($app_url . '/clients/api_info')->toString();
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
       '#title' => t('TextMaster API url'),
-      '#default_value' => $translator->getSetting('textmaster_service_url') ?: 'http://api.textmaster.com',
+      '#default_value' => $service_url ?: 'http://api.textmaster.com',
       '#description' => t('Please enter the TextMaster API base url.'),
       '#required' => TRUE,
     ];
@@ -95,11 +95,12 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
-
+    $service_url = $job->getTranslator()->getSetting('textmaster_service_url');
+    $app_url = tmgmt_textmaster_get_app_url($service_url);
     // Account Credits.
     $account_info = $translator_plugin->getTmAccountInfo();
     if (!empty($account_info['wallet'])) {
-      $buy_credits_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new', [
+      $buy_credits_url = Url::fromUri($app_url . '/clients/payment_requests/new', [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -148,7 +149,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'item',
       '#title' => t('Want to add project template?'),
       '#markup' => t('You can create it <a href=:template_url target="_blank">here</a>', [
-        ':template_url' => Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')
+        ':template_url' => Url::fromUri($app_url . '/clients/project_templates/api_templates')
           ->toString(),
       ]),
     ];
