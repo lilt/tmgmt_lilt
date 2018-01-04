@@ -13,6 +13,7 @@ use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
+use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
 
 /**
@@ -28,14 +29,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
-    $service_url = $translator->getSetting('textmaster_service_url');
-    $app_url = tmgmt_textmaster_get_app_url($service_url);
+    $app_url = $this->getApplicationUrl($translator);
     $tm_api_key_url = Url::fromUri($app_url . '/clients/api_info')->toString();
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
       '#title' => t('TextMaster API url'),
-      '#default_value' => $service_url ?: 'http://api.textmaster.com',
+      '#default_value' => $translator->getSetting('textmaster_service_url') ?: 'http://api.textmaster.com',
       '#description' => t('Please enter the TextMaster API base url.'),
       '#required' => TRUE,
     ];
@@ -95,8 +95,8 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
-    $service_url = $job->getTranslator()->getSetting('textmaster_service_url');
-    $app_url = tmgmt_textmaster_get_app_url($service_url);
+    $app_url = $this->getApplicationUrl($job->getTranslator());
+
     // Account Credits.
     $account_info = $translator_plugin->getTmAccountInfo();
     if (!empty($account_info['wallet'])) {
@@ -506,6 +506,28 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       }
     }
     return $templates;
+  }
+
+  /**
+   * Get TextMaster Application URL.
+   *
+   * @param \Drupal\tmgmt\TranslatorInterface $translator
+   *   TMGMT Translator.
+   *
+   * @return string
+   *   TextMaster Application URL.
+   */
+  public static function getApplicationUrl(TranslatorInterface $translator) {
+    $service_url = $translator->getSetting('textmaster_service_url');
+    if (!isset($service_url) || !is_string($service_url)) {
+      $service_url = '';
+    }
+    if (strpos($service_url, 'sandbox') !== FALSE) {
+
+      return 'https://www.app.sandbox.textmaster.com';
+    }
+
+    return 'https://www.app.textmaster.com';
   }
 
 }

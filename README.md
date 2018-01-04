@@ -18,6 +18,6 @@ https://www.app.textmaster.com/clients/api_info after
 registration on https://www.textmaster.com
 
 Please be sure that your server time is correct. Wrong time
-value may cause the Authentication failure for TextMaster Plugins (see 
+value may cause the authentication failure for TextMaster plugins (see 
 https://eu.app.textmaster.com/api-documentation#authentication-signature-creation
 for details).

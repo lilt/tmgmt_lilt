@@ -26,8 +26,7 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
     if (!$project_id) {
       return;
     }
-    $service_url = $entity->getTranslator()->getSetting('textmaster_service_url');
-    $textmaster_app_url = tmgmt_textmaster_get_app_url($service_url);
+    $textmaster_app_url = TextmasterTranslatorUi::getApplicationUrl($entity->getTranslator());
 
     $operations['view_on_tm'] = [
       'url' => Url::fromUri($textmaster_app_url . '/clients/projects/' . $project_id, [
@@ -62,8 +61,7 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
     if (!$project_id || $module_name != 'tmgmt_textmaster') {
       return;
     }
-    $service_url = $entity->getTranslator()->getSetting('textmaster_service_url');
-    $textmaster_app_url = tmgmt_textmaster_get_app_url($service_url);
+    $textmaster_app_url = TextmasterTranslatorUi::getApplicationUrl($entity->getTranslator());
     $operations['view_on_tm'] = [
       'url' => Url::fromUri($textmaster_app_url . '/clients/projects/' . $project_id . '/documents/' . $document_id, [
         'attributes' => [
@@ -266,25 +264,4 @@ function tmgmt_textmaster_get_job_item_remote(JobItemInterface $job_item) {
     'document_id' => $remote_mapping->remote_identifier_3->value,
   ];
   return $basic_remote_data;
-}
-
-/**
- * Get TextMaster Application URL.
- *
- * @param string $service_url
- *   Configured TextMaster service URL.
- *
- * @return string
- *   TextMaster Application URL.
- */
-function tmgmt_textmaster_get_app_url($service_url = '') {
-  if (!isset($service_url) || !is_string($service_url)) {
-    $service_url = '';
-  }
-  if (strpos($service_url, 'sandbox') !== FALSE) {
-
-    return 'https://www.app.sandbox.textmaster.com';
-  }
-
-  return 'https://www.app.textmaster.com';
 }
