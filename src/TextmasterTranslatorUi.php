@@ -13,14 +13,13 @@ use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
+use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
 
 /**
  * TextMaster translator UI.
  */
 class TextmasterTranslatorUi extends TranslatorPluginUiBase {
-
-  const TEXTMASTER_APPLICATION_URL = 'https://www.app.sandbox.textmaster.com';
 
   /**
    * {@inheritdoc}
@@ -30,7 +29,8 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
-    $tm_api_key_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/api_info')->toString();
+    $app_url = $this->getApplicationUrl($translator);
+    $tm_api_key_url = Url::fromUri($app_url . '/clients/api_info')->toString();
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
@@ -95,11 +95,12 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
+    $app_url = $this->getApplicationUrl($job->getTranslator());
 
     // Account Credits.
     $account_info = $translator_plugin->getTmAccountInfo();
     if (!empty($account_info['wallet'])) {
-      $buy_credits_url = Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/payment_requests/new', [
+      $buy_credits_url = Url::fromUri($app_url . '/clients/payment_requests/new', [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -148,7 +149,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'item',
       '#title' => t('Want to add project template?'),
       '#markup' => t('You can create it <a href=:template_url target="_blank">here</a>', [
-        ':template_url' => Url::fromUri(static::TEXTMASTER_APPLICATION_URL . '/clients/project_templates/api_templates')
+        ':template_url' => Url::fromUri($app_url . '/clients/project_templates/api_templates')
           ->toString(),
       ]),
     ];
@@ -505,6 +506,28 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       }
     }
     return $templates;
+  }
+
+  /**
+   * Get TextMaster Application URL.
+   *
+   * @param \Drupal\tmgmt\TranslatorInterface $translator
+   *   TMGMT Translator.
+   *
+   * @return string
+   *   TextMaster Application URL.
+   */
+  public static function getApplicationUrl(TranslatorInterface $translator) {
+    $service_url = $translator->getSetting('textmaster_service_url');
+    if (!isset($service_url) || !is_string($service_url)) {
+      $service_url = '';
+    }
+    if (strpos($service_url, 'sandbox') !== FALSE) {
+
+      return 'https://www.app.sandbox.textmaster.com';
+    }
+
+    return 'https://www.app.textmaster.com';
   }
 
 }

@@ -26,9 +26,10 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
     if (!$project_id) {
       return;
     }
+    $textmaster_app_url = TextmasterTranslatorUi::getApplicationUrl($entity->getTranslator());
 
     $operations['view_on_tm'] = [
-      'url' => Url::fromUri(TextmasterTranslatorUi::TEXTMASTER_APPLICATION_URL . '/clients/projects/' . $project_id, [
+      'url' => Url::fromUri($textmaster_app_url . '/clients/projects/' . $project_id, [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -60,8 +61,9 @@ function tmgmt_textmaster_entity_operation(EntityInterface $entity) {
     if (!$project_id || $module_name != 'tmgmt_textmaster') {
       return;
     }
+    $textmaster_app_url = TextmasterTranslatorUi::getApplicationUrl($entity->getTranslator());
     $operations['view_on_tm'] = [
-      'url' => Url::fromUri(TextmasterTranslatorUi::TEXTMASTER_APPLICATION_URL . '/clients/projects/' . $project_id . '/documents/' . $document_id, [
+      'url' => Url::fromUri($textmaster_app_url . '/clients/projects/' . $project_id . '/documents/' . $document_id, [
         'attributes' => [
           'target' => '_blank',
         ],
