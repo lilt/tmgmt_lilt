@@ -66,7 +66,7 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
 
     // Submit job to TextMaster.
     $this->clickButton('input[id^="edit-submit"]');
-    $this->assertSession()->pageTextContains(t('1 document(s) was(were) created in TextMaster for Job'));
+    $this->assertSession()->pageTextContains(t('1 document(s) was(were) created in TextMaster for job "Page for test translation En"'));
 
     // Visit job overview page. Check Price column and Job state.
     $this->drupalGet('admin/tmgmt/jobs');
@@ -87,10 +87,8 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
     $this->clickLink(t('Submit'));
 
     $this->createScreenshot('job_page.png');
-    $this->assertSession()->pageTextContains(t('Please note that Drupal word count may differ from TextMaster'));
     $this->assertSession()->pageTextContains(t('Created a new Document in TextMaster with the id'));
     $this->assertSession()->pageTextContains(t('Created a new Project in TextMaster with the id'));
-    $this->assertSession()->pageTextContains(t('was finalized'));
   }
 
 }
