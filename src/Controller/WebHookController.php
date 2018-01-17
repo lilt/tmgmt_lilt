@@ -6,6 +6,7 @@ use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\Entity\RemoteMapping;
+use Drupal\tmgmt\Entity\Job;
 use Drupal\tmgmt\TMGMTException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -68,6 +69,13 @@ class WebHookController extends ControllerBase {
       }
 
       try {
+        // Check job status and update it if project was launched from TextMaster.
+        if ($job->getState() == Job::STATE_UNPROCESSED) {
+          $message = t('Updated status for job "@job_label"', [
+            '@job_label' => $job->label(),
+          ]);
+          $job->setState(Job::STATE_ACTIVE, $message);
+        }
         // Download translated document from the given URL.
         $translator_plugin->addTranslationToJob($job, $status, $project_id, $document_id, $remote_file_url);
       }
