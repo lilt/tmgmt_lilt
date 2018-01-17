@@ -39,9 +39,11 @@ class TextmasterProjectController extends ControllerBase {
       $message = $this->t('Could not get the TextMaster Project status');
       return $this->redirectToJobsList($message, 'error');
     }
-    if ($tm_project_data['status'] == 'in_progress' && $job->getState() == Job::STATE_UNPROCESSED) {
-      // Update Job status according to TextMaster (project must have been launched from TextMaster).
-      $message = t('Updated status for job "@job_label"', [
+    if ($tm_project_data['status'] == 'in_progress'
+        && $job->getState() == Job::STATE_UNPROCESSED) {
+      // Update Job status according to TextMaster
+      // (project must have been launched from TextMaster).
+      $message = $this->t('Updated status for job "@job_label"', [
         '@job_label' => $job->label(),
       ]);
       $job->setState(Job::STATE_ACTIVE, $message);
@@ -51,7 +53,9 @@ class TextmasterProjectController extends ControllerBase {
       return $this->redirectToJobsList($message, 'warning');
     }
     if ($tm_project_data['status'] != 'in_creation') {
-      $message = $this->t('Could not launch the TextMaster Project with status: @status', ['@status' => $tm_project_data['status']]);
+      $message = $this->t('Could not launch the TextMaster Project with status: @status', [
+        '@status' => $tm_project_data['status'],
+      ]);
       return $this->redirectToJobsList($message, 'error');
     }
     $translator_plugin->sendApiRequest('/v1/clients/projects/' . $tm_project_id . '/launch', 'PUT');

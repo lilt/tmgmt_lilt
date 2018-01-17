@@ -69,9 +69,10 @@ class WebHookController extends ControllerBase {
       }
 
       try {
-        // Check job status and update it if project was launched from TextMaster.
+        // Check job status and update it if project was launched
+        // from TextMaster.
         if ($job->getState() == Job::STATE_UNPROCESSED) {
-          $message = t('Updated status for job "@job_label"', [
+          $message = $this->t('Updated status for job "@job_label"', [
             '@job_label' => $job->label(),
           ]);
           $job->setState(Job::STATE_ACTIVE, $message);
