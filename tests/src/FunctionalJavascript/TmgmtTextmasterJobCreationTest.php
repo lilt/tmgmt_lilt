@@ -66,6 +66,8 @@ class TmgmtTextmasterJobCreationTest extends TmgmtTextmasterTestBase {
 
     // Submit job to TextMaster.
     $this->clickButton('input[id^="edit-submit"]');
+    $this->assertSession()->waitForElementVisible('css', '.messages');
+    $this->createScreenshot('job_submitted.png');
     $this->assertSession()->pageTextContains(t('1 document(s) was(were) created in TextMaster for job "Page for test translation En"'));
 
     // Visit job overview page. Check Price column and Job state.
