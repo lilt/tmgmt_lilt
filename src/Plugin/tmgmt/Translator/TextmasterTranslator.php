@@ -468,6 +468,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       'Date' => $date,
       'Signature' => $this->getTextmasterSignature($date, $this->translator->getSetting('textmaster_api_secret')),
       'Content-Type' => 'application/json',
+      // Enhancement #309335: track from which platform the project was created.
+      'HTTP_X_PARTNER_ID' => '423f185b-e792-42e8-9c08-184705b37404',
     ];
 
     try {
