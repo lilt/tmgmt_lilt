@@ -6,10 +6,10 @@ tmgmt.translator.settings.textmaster:
       label: Automatically accept
     textmaster_service_url:
       type: string
-      label: TextMaster API url
+      label: Lilt API url
     textmaster_api_key:
       type: string
-      label: TextMaster API key
+      label: Lilt API key
     textmaster_api_secret:
       type: string
-      label: TextMaster API secret
+      label: Lilt API secret

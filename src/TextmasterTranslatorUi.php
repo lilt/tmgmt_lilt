@@ -17,7 +17,7 @@ use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator;
 
 /**
- * TextMaster translator UI.
+ * Lilt translator UI.
  */
 class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
@@ -34,25 +34,25 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
 
     $form['textmaster_service_url'] = [
       '#type' => 'textfield',
-      '#title' => t('TextMaster API url'),
-      '#default_value' => $translator->getSetting('textmaster_service_url') ?: 'http://api.textmaster.com',
-      '#description' => t('Please enter the TextMaster API base url.'),
+      '#title' => t('Lilt API url'),
+      '#default_value' => $translator->getSetting('textmaster_service_url') ?: 'https://lilt.com/2',
+      '#description' => t('Please enter the Lilt API base url.'),
       '#required' => TRUE,
     ];
     $form['textmaster_api_key'] = [
       '#type' => 'textfield',
-      '#title' => t('TextMaster API key'),
+      '#title' => t('Lilt API key'),
       '#default_value' => $translator->getSetting('textmaster_api_key') ?: '',
-      '#description' => t("Please enter the TextMaster API key. You can find it <a href=:api_key_url  target='_blank'>here</a>", [
+      '#description' => t("Please enter the Lilt API key. You can find it <a href=:api_key_url  target='_blank'>here</a>", [
         ':api_key_url' => $tm_api_key_url,
       ]),
       '#required' => TRUE,
     ];
     $form['textmaster_api_secret'] = [
       '#type' => 'textfield',
-      '#title' => t('TextMaster API secret'),
+      '#title' => t('Lilt API secret'),
       '#default_value' => $translator->getSetting('textmaster_api_secret') ?: '',
-      '#description' => t("Please enter your TextMaster API secret. You can find it <a href=:api_key_url target='_blank'>here</a>", [
+      '#description' => t("Please enter your Lilt API secret. You can find it <a href=:api_key_url target='_blank'>here</a>", [
         ':api_key_url' => $tm_api_key_url,
       ]),
       '#required' => TRUE,
@@ -90,7 +90,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    */
   public function checkoutSettingsForm(array $form, FormStateInterface $form_state, JobInterface $job) {
     if ($form_state->isRebuilding() && $form_state->getTriggeringElement()['#value'] == 'textmaster') {
-      drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+      drupal_set_message(t('Please note that Drupal word count may differ from Lilt.'), 'warning');
     }
 
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
@@ -111,7 +111,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
           '@current_money' => $account_info['wallet']['current_money'],
           '@currency_code' => $account_info['wallet']['currency_code'],
         ]),
-        '#markup' => Link::fromTextAndUrl(t('Buy credits on TextMaster'), $buy_credits_url)
+        '#markup' => Link::fromTextAndUrl(t('Buy credits on Lilt'), $buy_credits_url)
           ->toString(),
       ];
     }
@@ -121,7 +121,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#access' => FALSE,
       '#type' => 'textfield',
       '#title' => t('Project Price'),
-      '#description' => t('TextMaster Project price.'),
+      '#description' => t('Lilt Project price.'),
       '#default_value' => $job->getSetting('project_price'),
     ];
 
@@ -140,7 +140,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'select',
       '#title' => t('Project template'),
       '#options' => $templates,
-      '#description' => t('Select a TextMaster project template.'),
+      '#description' => t('Select a Lilt project template.'),
       '#required' => TRUE,
       '#default_value' => isset($job->settings->templates_wrapper['project_template']) ? $job->settings->templates_wrapper['project_template'] : '',
     ];
@@ -157,7 +157,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $settings['update_template_list'] = [
       '#type' => 'submit',
       '#value' => t('Update templates'),
-      '#description' => t('If you added new template in TextMaster click on this button to update the list in Drupal.'),
+      '#description' => t('If you added new template in Lilt click on this button to update the list in Drupal.'),
       '#validate' => [[$this, 'updateTemplatesValidate']],
       '#ajax' => [
         'callback' => [$this, 'updateTemplatesSelectlist'],
@@ -219,12 +219,12 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $project_id = $remote['project_id'];
     $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
     if (empty($tm_document_data)) {
-      $form_state->setError($form, t('Could not get the TextMaster Document "@document_id" to complete it.', ['@document_id' => $document_id]));
+      $form_state->setError($form, t('Could not get the Lilt Document "@document_id" to complete it.', ['@document_id' => $document_id]));
     }
     if (!array_key_exists('status', $tm_document_data)
       || !$plugin->isRemoteTranslationCompleted($tm_document_data['status'])
     ) {
-      $form_state->setError($form, t('The translation for this job item can not be accepted as the TextMaster document "@document_id" status is "@status".', [
+      $form_state->setError($form, t('The translation for this job item can not be accepted as the Lilt document "@document_id" status is "@status".', [
         '@document_id' => $document_id,
         '@status' => $tm_document_data['status'],
       ]));
@@ -257,44 +257,44 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
       || $tm_document_data['status'] != 'in_review'
     ) {
       // This Document must be already completed as Job item passed validation.
-      $message = t('Could not complete TextMaster document "@document_id" with status "@status"', [
+      $message = t('Could not complete Lilt document "@document_id" with status "@status"', [
         '@document_id' => $document_id,
         '@status' => $tm_document_data['status'],
       ]);
       drupal_set_message($message);
-      $item->getJob()->addMessage('Could not complete TextMaster document "@document_id" with status "@status"', [
+      $item->getJob()->addMessage('Could not complete Lilt document "@document_id" with status "@status"', [
         '@document_id' => $document_id,
         '@status' => $tm_document_data['status'],
       ]);
       return;
     }
-    // Complete document in TextMaster.
+    // Complete document in Lilt.
     $result = $plugin->completeTmDocument($project_id, $document_id);
     // Show the result messages.
     if (!empty($result)) {
       // Success.
       $item->getJob()
-        ->addMessage('TextMaster Document "@document_id" was completed', [
+        ->addMessage('Lilt Document "@document_id" was completed', [
           '@document_id' => $document_id,
         ]);
-      drupal_set_message(t('TextMaster Document "@document_id" was completed', [
+      drupal_set_message(t('Lilt Document "@document_id" was completed', [
         '@document_id' => $document_id,
       ]));
     }
     else {
       // Inform about failure.
       $item->getJob()
-        ->addMessage('Could not complete TextMaster Document "@document_id"', [
+        ->addMessage('Could not complete Lilt Document "@document_id"', [
           '@document_id' => $document_id,
         ], 'error');
-      drupal_set_message(t('Could not complete TextMaster Document "@document_id"', [
+      drupal_set_message(t('Could not complete Lilt Document "@document_id"', [
         '@document_id' => $document_id,
       ]), 'error');
     }
   }
 
   /**
-   * Submit callback to pull translations form TextMaster.
+   * Submit callback to pull translations form Lilt.
    *
    * @param array $form
    *   Form.
@@ -327,7 +327,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
   }
 
   /**
-   * Ajax callback to update TextMaster templates list.
+   * Ajax callback to update Lilt templates list.
    *
    * @param array $form
    *   Form.
@@ -474,7 +474,7 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
    *   TMGMT Job Entity.
    *
    * @return \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator
-   *   TextMaster Translator plugin.
+   *   Lilt Translator plugin.
    */
   public function getTranslatorPluginForJob(JobInterface $job) {
     /** @var \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin */
@@ -484,10 +484,10 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
   }
 
   /**
-   * Get TextMaster templates list filtered by Job source and target language.
+   * Get Lilt templates list filtered by Job source and target language.
    *
    * @param \Drupal\tmgmt_textmaster\Plugin\tmgmt\Translator\TextmasterTranslator $translator_plugin
-   *   TextMaster Translator plugin.
+   *   Lilt Translator plugin.
    * @param \Drupal\tmgmt\JobInterface $job
    *   TMGMT Job Entity.
    *
@@ -509,13 +509,13 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
   }
 
   /**
-   * Get TextMaster Application URL.
+   * Get Lilt Application URL.
    *
    * @param \Drupal\tmgmt\TranslatorInterface $translator
    *   TMGMT Translator.
    *
    * @return string
-   *   TextMaster Application URL.
+   *   Lilt Application URL.
    */
   public static function getApplicationUrl(TranslatorInterface $translator) {
     $service_url = $translator->getSetting('textmaster_service_url');
