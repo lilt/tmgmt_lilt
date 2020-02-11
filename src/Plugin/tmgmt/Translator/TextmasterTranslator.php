@@ -25,8 +25,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
  *
  * @TranslatorPlugin(
  *   id = "textmaster",
- *   label = @Translation("TextMaster"),
- *   description = @Translation("TextMaster translation service."),
+ *   label = @Translation("Lilt"),
+ *   description = @Translation("Lilt translation service."),
  *   ui = "Drupal\tmgmt_textmaster\TextmasterTranslatorUi",
  * )
  */
