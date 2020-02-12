@@ -94,19 +94,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $supported_remote_languages = [];
     $this->setTranslator($translator);
     try {
-      $supported_languages = $this->sendApiRequest('v1/public/languages');
+      $supported_languages = $this->sendApiRequest('languages');
       if (!$supported_languages) {
         return $supported_remote_languages;
       }
-      foreach ($supported_languages['languages'] as $language) {
-        if (!preg_match('/[-]/', $language['code'])) {
-          continue;
-        }
-        $supported_remote_languages[$language['code']] = $language['value']
-          . ' ('
-          . $language['code']
-          . ')';
-      }
+      $supported_remote_languages = $supported_languages['code_to_name'];
     }
     catch (\Exception $e) {
       $message = t('Exception occurred while getting remote languages: @error.', [
@@ -219,7 +211,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
         'remote_data' => [
           'FileStateVersion' => 1,
           'TMState' => TMGMT_DATA_ITEM_STATE_PRELIMINARY,
-          'TemplateAutoLaunch' => $translator_plugin->isTemplateAutoLaunch($job->settings->templates_wrapper['project_template']),
+          'TemplateAutoLaunch' => FALSE,
           'WordCountFinished' => FALSE,
         ],
       ]);
@@ -372,7 +364,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *   Account info.
    */
   public function getTmAccountInfo() {
-    return $this->sendApiRequest('v1/clients/users/me');
+    return $this->sendApiRequest('languages');
   }
 
   /**
@@ -454,22 +446,18 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     }
     else {
       if ($method == 'GET' && isset($params['query'])) {
-        $options['query'] = $params['query'];
+        // $options['query'] = $params['query'];
       }
       else {
-        $options['json'] = $params;
+        // $options['json'] = $params;
       }
     }
 
     // Default headers for TextMaster Api requests.
     $date = $this->utcDate();
     $options['headers'] = [
-      'Apikey' => $this->translator->getSetting('textmaster_api_key'),
-      'Date' => $date,
-      'Signature' => $this->getTextmasterSignature($date, $this->translator->getSetting('textmaster_api_secret')),
       'Content-Type' => 'application/json',
-      // Enhancement #309335: track from which platform the project was created.
-      'HTTP_X_PARTNER_ID' => '423f185b-e792-42e8-9c08-184705b37404',
+      'Authorization' => 'Basic MmJhNGUyMTFlYmE3NWU3Nzg0ZmI6MmJhNGUyMTFlYmE3NWU3Nzg0ZmI=',
     ];
 
     try {
@@ -544,25 +532,12 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function createTmProject(JobInterface $job) {
     // Prepare parameters for Project API.
-    $name = $job->get('label')->value ?: 'Drupal TMGMT project ' . $job->id();
-    $callback_url = Url::fromRoute('tmgmt_textmaster.project_finalized_callback')
-      ->setAbsolute()
-      ->toString();
+    $name = $job->get('label')->value ?: 'Drupal Lilt project ' . $job->id();
     $params = [
-      'project' => [
         'name' => $name,
-        'activity_name' => 'translation',
-        'api_template_id' => $job->settings->templates_wrapper['project_template'],
-        'category' => 'C033',
-        'callback' => [
-          'project_finalized' => [
-            "url" => $callback_url,
-            "format" => "json",
-          ],
-        ],
-      ],
+        'memory_id' => 46558,
     ];
-    $result = $this->sendApiRequest('v1/clients/projects', 'POST', $params);
+    $result = $this->sendApiRequest('projects', 'POST', [], FALSE, FALSE, json_encode($params));
 
     return $result['id'];
   }
@@ -725,7 +700,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function getTmProject($project_id) {
     try {
-      return $this->sendApiRequest('v1/clients/projects/' . $project_id);
+      return $this->sendApiRequest('projects?id=' . $project_id);
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
@@ -756,8 +731,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $xliff = $xliff_converter->export($job_item->getJob(), $conditions);
     $name = "JobID_{$job_item->getJob()->id()}_JobItemID_{$job_item_id}_{$job_item->getJob()->getSourceLangcode()}_{$target_language}";
 
-    $remote_file_url = $this->createTmRemoteFile($xliff, $name);
-    $document_id = $this->createTmDocument($project_id, $remote_file_url, $name);
+    $document_id = $this->createTmRemoteFile($xliff, $name, $project_id);
 
     return $document_id;
   }
@@ -775,30 +749,28 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-  public function createTmRemoteFile($xliff, $name) {
+  public function createTmRemoteFile($xliff, $name, $project_id) {
     $file_name = $name . '.xliff';
-    $file_hash = hash('sha256', $xliff);
 
     // Set Parametres to request for upload properties from TextMaster API.
     $params = [
-      'file_name' => $file_name,
-      'hashed_payload' => $file_hash,
+      'name' => $file_name,
+      'project_id' => $project_id,
     ];
-    $upload_properties = $this->sendApiRequest('v1/clients/s3_upload_properties.json', 'POST', $params);
-    if (!isset($upload_properties['url']) || !isset($upload_properties['headers'])) {
-      throw new TMGMTException('Could not obtain upload properties from TextMaster API');
-    }
     // Set headers and body for file PUT request.
-    $options['headers'] = $upload_properties['headers'];
-    $options['headers']['Content-Type'] = 'application/xml';
+    $options['headers']['Authorization'] = 'Basic MmJhNGUyMTFlYmE3NWU3Nzg0ZmI6MmJhNGUyMTFlYmE3NWU3Nzg0ZmI=';
+    $options['headers']['Content-Type'] = 'application/octet-stream';
+    $options['headers']['LILT-API'] = json_encode($params);
     $options['body'] = $xliff;
     // We don't need apiRequest here just common request.
-    $file_response = $this->client->request('PUT', $upload_properties['url'], $options);
+    $file_response = $this->client->request('POST', 'https://lilt.com/2/documents/files', $options);
     if ($file_response->getStatusCode() != 200) {
       throw new TMGMTException('Could not Upload the file ' . $file_name . ' to TextMaster.');
     }
 
-    return $upload_properties['url'];
+    $res = $file_response->getBody();
+
+    return $res;
   }
 
   /**
@@ -814,7 +786,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    */
   public function getTmDocument($project_id, $document_id) {
     try {
-      return $this->sendApiRequest('v1/clients/projects/' . $project_id . '/documents/' . $document_id, 'GET');
+      return $this->sendApiRequest('documents/files?is_xliff=false&id=' . $document_id, 'GET');
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_textmaster')
