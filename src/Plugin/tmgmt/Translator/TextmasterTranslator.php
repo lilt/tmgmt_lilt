@@ -144,7 +144,7 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
     $this->setTranslator($job->getTranslator());
     try {
       $project_id = $this->createTmProject($job);
-      $job->addMessage('Created a new Project in TextMaster with the id: @id', ['@id' => $project_id], 'debug');
+      $job->addMessage('Created a new Project in Lilt with the id: @id', ['@id' => $project_id], 'debug');
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
       foreach ($job_items as $job_item) {
@@ -280,10 +280,10 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
           $job->submitted();
         }
         else {
-          $job->setState(Job::STATE_UNPROCESSED, 'The translation job has been submitted.');
+          $job->setState(Job::STATE_ACTIVE, 'The translation job has been submitted.');
         }
       }
-      drupal_set_message(t('@created document(s) was(were) created in TextMaster for Job "@job_label".', [
+      drupal_set_message(t('@created document(s) was(were) created in Lilt for Job "@job_label".', [
         '@created' => $created,
         '@job_label' => $job->label(),
       ]));
@@ -768,9 +768,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       throw new TMGMTException('Could not Upload the file ' . $file_name . ' to TextMaster.');
     }
 
-    $res = $file_response->getBody();
-
-    return $res;
+    $res = json_decode($file_response->getBody(), true);
+    return $res['id'];
   }
 
   /**
@@ -968,24 +967,8 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
       // Prepare parameters for Job API (to get the job status).
       $document_id = $mapping->getRemoteIdentifier3();
       $project_id = $mapping->getRemoteIdentifier2();
-      $info = $translator_plugin->getTmDocument($project_id, $document_id);
-      if (empty($info)) {
-        $job->addMessage('Error fetching the job item: @job_item. TextMaster document @document_id not found.',
-          [
-            '@job_item' => $job_item->label(),
-            '@document_id' => $document_id,
-          ], 'error');
-        $errors[] = 'TextMaster document ' . $document_id . ' not found, it was probably deleted.';
-      }
-
-      if (!array_key_exists('status', $info)
-        || !$translator_plugin->isRemoteTranslationCompleted($info['status'])
-      ) {
-        continue;
-      }
-
       try {
-        $translator_plugin->addTranslationToJob($job, $info['status'], $project_id, $document_id, $info['author_work']);
+        $translator_plugin->addTranslationToJob($job, NULL, $project_id, $document_id, NULL);
         $is_item_translated = TRUE;
       }
       catch (TMGMTException $e) {
@@ -1103,17 +1086,11 @@ class TextmasterTranslator extends TranslatorPluginBase implements ContainerFact
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
+
   public function addTranslationToJob(JobInterface $job, $document_state, $project_id, $document_id, $remote_file_url) {
-    $translated_file_response = $this->client->request('GET', $remote_file_url);
-    $translated_file_content = $translated_file_response->getBody()
-      ->getContents();
+    $translated_file_content = $this->request('documents/files?is_xliff=false&id=' . $document_id, 'GET', [], TRUE);
     $file_data = $this->parseTranslationData($translated_file_content);
-    if ($this->isRemoteTranslationCompleted($document_state)) {
-      $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;
-    }
-    else {
-      $status = TMGMT_DATA_ITEM_STATE_PRELIMINARY;
-    }
+    $status = TMGMT_DATA_ITEM_STATE_TRANSLATED;
     $job->addTranslatedData($file_data, [], $status);
     $mappings = RemoteMapping::loadByRemoteIdentifier('tmgmt_textmaster', $project_id, $document_id);
     /** @var \Drupal\tmgmt\Entity\RemoteMapping $mapping */

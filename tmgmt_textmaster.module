@@ -117,7 +117,7 @@ function tmgmt_textmaster_form_views_exposed_form_alter(&$form, $form_state, $fo
 
   if (!empty($view) && $view->id() == 'tmgmt_job_overview') {
     // Add warning message about word count.
-    drupal_set_message(t('Please note that Drupal word count may differ from TextMaster.'), 'warning');
+    drupal_set_message(t('Please note that Drupal word count may differ from Lilt.'), 'warning');
   }
 }
 

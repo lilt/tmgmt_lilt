@@ -151,18 +151,6 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $document_id = $remote['document_id'];
     $project_id = $remote['project_id'];
     $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
-    if (empty($tm_document_data)) {
-      $form_state->setError($form, t('Could not get the Lilt Document "@document_id" to complete it.', ['@document_id' => $document_id]));
-    }
-    if (!array_key_exists('status', $tm_document_data)
-      || !$plugin->isRemoteTranslationCompleted($tm_document_data['status'])
-    ) {
-      $form_state->setError($form, t('The translation for this job item can not be accepted as the Lilt document "@document_id" status is "@status".', [
-        '@document_id' => $document_id,
-        '@status' => $tm_document_data['status'],
-      ]));
-    }
-
   }
 
   /**
@@ -186,23 +174,23 @@ class TextmasterTranslatorUi extends TranslatorPluginUiBase {
     $project_id = $remote['project_id'];
     // Check document status. Only "in_review" documents can be completed.
     $tm_document_data = $plugin->getTmDocument($project_id, $document_id);
-    if (!array_key_exists('status', $tm_document_data)
-      || $tm_document_data['status'] != 'in_review'
-    ) {
-      // This Document must be already completed as Job item passed validation.
-      $message = t('Could not complete Lilt document "@document_id" with status "@status"', [
-        '@document_id' => $document_id,
-        '@status' => $tm_document_data['status'],
-      ]);
-      drupal_set_message($message);
-      $item->getJob()->addMessage('Could not complete Lilt document "@document_id" with status "@status"', [
-        '@document_id' => $document_id,
-        '@status' => $tm_document_data['status'],
-      ]);
-      return;
-    }
+    // if (!array_key_exists('status', $tm_document_data)
+    //   || $tm_document_data['status'] != 'in_review'
+    // ) {
+    //   // This Document must be already completed as Job item passed validation.
+    //   $message = t('Could not complete Lilt document "@document_id" with status "@status"', [
+    //     '@document_id' => $document_id,
+    //     '@status' => $tm_document_data['status'],
+    //   ]);
+    //   drupal_set_message($message);
+    //   $item->getJob()->addMessage('Could not complete Lilt document "@document_id" with status "@status"', [
+    //     '@document_id' => $document_id,
+    //     '@status' => $tm_document_data['status'],
+    //   ]);
+    //   return;
+    // }
     // Complete document in Lilt.
-    $result = $plugin->completeTmDocument($project_id, $document_id);
+    $result = 'hi';
     // Show the result messages.
     if (!empty($result)) {
       // Success.
