@@ -1,9 +1,9 @@
-TMGMT TextMaster (tmgmt_textmaster)
+TMGMT Lilt (tmgmt_lilt)
 ---------------------
 
-TMGMT TextMaster module is a plugin for
+TMGMT Lilt module is a plugin for
 Translation Management Tool module (tmgmt).
-It uses the TextMaster (https://www.textmaster.com)
+It uses Lilt (https://www.lilt.com)
 for automated translation of the content.
 
 REQUIREMENTS
