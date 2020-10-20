@@ -1,9 +1,0 @@
-name: Lilt Translator
-type: module
-description: 'Localize Drupal websites with the help of professional translation tools.'
-package: Translation Management
-dependencies:
-  - tmgmt:tmgmt
-  - tmgmt:tmgmt_file
-configure: entity.tmgmt_translator.collection
-core: '8.x'
