@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for the tmgmt_lilt module.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function tmgmt_lilt_install() {
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function tmgmt_lilt_uninstall() {
+}
