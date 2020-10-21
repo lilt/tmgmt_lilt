@@ -221,8 +221,8 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     if (!$this->translator) {
       throw new TMGMTException('There is no Translator entity. Access to the Lilt API is not possible.');
     }
-    $service_url = $this->translator->getSetting('lilt_service_url');
 
+    $service_url = $this->translator->getSetting('lilt_service_url');
     if (!$service_url) {
       \Drupal::logger('tmgmt_lilt')->warning('Attempt to call Lilt API when service_url is not set: ' . $path);
       return [];
@@ -232,10 +232,17 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       $options['body'] = $body;
     }
 
-    $options['headers'] = [
-      'Content-Type' => 'application/json',
-      'Authorization' => 'Basic MmJhNGUyMTFlYmE3NWU3Nzg0ZmI6MmJhNGUyMTFlYmE3NWU3Nzg0ZmI=',
-    ];
+    $api_key = $this->translator->getSetting('lilt_api_key');
+    if (!$api_key) {
+      \Drupal::logger('tmgmt_lilt')->warning('Attempt to call Lilt API when api_key is not set: ' . $path);
+      return [];
+    }
+    else {
+      $options['headers'] = [
+        'Content-Type' => 'application/json',
+        'Authorization' => 'Basic ' . base64_encode($api_key . ':' . $api_key),
+      ];
+    }
 
     try {
       $response = $this->client->request($method, $url, $options);
