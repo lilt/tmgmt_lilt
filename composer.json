@@ -4,7 +4,7 @@
   "type": "drupal-module",
   "homepage": "https://www.drupal.org/project/tmgmt_lilt",
   "support": {
-    "issues": "https://github.com/tgallant/tmgmt_lilt/issues",
+    "issues": "https://github.com/lilt/tmgmt_lilt/issues",
     "documentation": "https://github.com/lilt/tmgmt_lilt",
     "source": "https://cgit.drupalcode.org/tmgmt_lilt"
   },
