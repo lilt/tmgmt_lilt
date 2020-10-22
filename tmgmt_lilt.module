@@ -5,3 +5,179 @@
  * Module file of the Lilt Translator module.
  */
 
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Url;
+use Drupal\Core\Database\Database;
+use Drupal\tmgmt\Entity\Job;
+use Drupal\tmgmt\JobItemInterface;
+use Drupal\tmgmt_lilt\LiltTranslatorUi;
+use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
+
+/**
+ * Implements hook_entity_operation().
+ */
+function tmgmt_lilt_entity_operation(EntityInterface $entity) {
+
+  // Add Job Ops:
+  /** @var Drupal\tmgmt\Entity\Job $entity */
+  if ($entity->bundle() == 'tmgmt_job' && $entity->hasTranslator() && $entity->getTranslatorId() == 'lilt') {
+
+    $project_id = LiltTranslator::getJobProjectId($entity);
+    if (!$project_id) {
+      return;
+    }
+
+    $operations['lilt_view'] = [
+      'url' => Url::fromUri(LiltTranslatorUi::LILT_APP_URL . 'projects/details/' . $project_id, [
+        'attributes' => [
+          'target' => '_blank',
+        ],
+        'query' => [],
+      ]),
+      'title' => t('View on Lilt'),
+      'weight' => 10,
+    ];
+    return $operations;
+  }
+  /** @var Drupal\tmgmt\Entity\JobItem $entity */
+
+  // Add Job Item Ops:
+  if ($entity->bundle() == 'tmgmt_job_item') {
+    $remote = LiltTranslator::getJobItemMapping($entity);
+    list('module_name' => $module_name, 'document_id' => $document_id, 'project_id' => $project_id) = $remote;
+    if (!$project_id || $module_name != 'tmgmt_lilt') {
+      return;
+    }
+
+    $operations['lilt_view'] = [
+      'url' => Url::fromUri(LiltTranslatorUi::LILT_APP_URL . 'projects/details/' . $project_id . '/edit-document/' . $document_id, [
+        'attributes' => [
+          'target' => '_blank',
+        ],
+        'query' => [],
+      ]),
+      'title' => t('View on Lilt'),
+      'weight' => 10,
+    ];
+    return $operations;
+  }
+
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_lilt_form_tmgmt_job_abort_form_alter(&$form) {
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = \Drupal::routeMatch()->getParameter('tmgmt_job');
+  if (empty($job) || !$job->hasTranslator() || $job->getTranslatorId() != 'lilt') {
+    return;
+  }
+
+  $confirmation_message = t("This will send a request to Lilt to abort the job.");
+  $form['description']['#markup'] = $confirmation_message->render();
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
+
+  // Retrieve job item data:
+  /** @var Drupal\tmgmt\Entity\JobItem $job_item */
+  $job_item = $form_state->getFormObject()->getEntity();
+
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = $job_item->getJob();
+  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt' || $job_item->bundle() != 'tmgmt_job_item'
+  ) {
+    return;
+  }
+
+  if (!$job_item->isState(JobItemInterface::STATE_REVIEW)) {
+    return;
+  }
+
+  /** @var Drupal\tmgmt_lilt\LiltTranslator $plugin */
+  $plugin = $job_item->getTranslatorPlugin();
+  $plugin->setTranslator($job_item->getTranslator());
+  $remote = LiltTranslator::getJobItemMapping($job_item);
+  list('module_name' => $module_name, 'document_id' => $document_id, 'project_id' => $project_id) = $remote;
+  /** @var array $lilt_doc */
+  $lilt_doc = $plugin->getLiltDocument($project_id, $document_id);
+  if (empty($lilt_doc) || !array_key_exists('status', $lilt_doc)) {
+    return;
+  }
+
+  // Warnings:
+  if (!$form_state->isRebuilding()) {
+    if ($lilt_doc['status'] === 'inReview') {
+      \Drupal::messenger()->addWarning(t('If content is not accepted within 7 days, it will be automatically validated by Lilt with no possible revision request.'));
+    }
+    elseif ($lilt_doc['status'] === 'inProgress') {
+      \Drupal::messenger()->addWarning(t('Please note that Lilt Document for this job item is in status "incomplete" and you wont be able to accept the translation until Lilt author finishes his work.'));
+    }
+    elseif ($lilt_doc['status'] === 'done') {
+      \Drupal::messenger()->addWarning(t('Please note that Lilt Document for this job item is already completed.'));
+    }
+  }
+
+  // Only in review can be revisioned.
+  if ($lilt_doc['status'] != 'inReview') {
+    return;
+  }
+
+  // Revision request button:
+  $form['actions']['lilt_revision'] = [
+    '#type' => 'submit',
+    '#value' => t('Ask for revision in Lilt'),
+    '#validate' => [[LiltTranslatorUi::class, 'askForRevisionValidate']],
+    '#ajax' => [
+      'callback' => [LiltTranslatorUi::class, 'askForRevisionCallback'],
+    ],
+    '#attributes' => [
+      'class' => ['ask-for-revision-button'],
+    ],
+    '#limit_validation_errors' => [],
+    '#weight' => 21,
+  ];
+
+  $form['revision_message_wrapper'] = [
+    '#type' => 'container',
+    '#attributes' => ['id' => 'revision-message-wrapper'],
+  ];
+
+  // Revision request message field:
+  if ($form_state->isRebuilding() && $form_state->get('ask_for_revision') && $form_state->get('revision_message_sent') === NULL) {
+    $form['revision_message_wrapper']['revision_message'] = [
+      '#type' => 'textarea',
+      '#title' => t('Revision message'),
+      '#default_value' => '',
+      '#rows' => 3,
+      '#description' => t('Please enter revision message'),
+      '#weight' => 10,
+    ];
+    $form['revision_message_wrapper']['request_revision'] = [
+      '#type' => 'submit',
+      '#value' => t('Request for revision in Lilt'),
+      '#validate' => [[LiltTranslatorUi::class, 'sendRevisionRequestValidate']],
+      '#submit' => [[LiltTranslatorUi::class, 'sendRevisionRequestSubmit']],
+      '#ajax' => [
+        'callback' => [LiltTranslatorUi::class, 'sendRevisionRequestCallback'],
+      ],
+      '#weight' => 20,
+    ];
+    $form['actions']['lilt_revision']['#access'] = FALSE;
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_lilt_form_views_exposed_form_alter(&$form, $form_state, $form_id) {
+  $view = $form_state->get('view');
+
+  if (!empty($view) && $view->id() == 'tmgmt_job_overview') {
+    \Drupal::messenger()->addWarning(t('NOTE: Drupal word count may differ from Lilt.'));
+  }
+}
