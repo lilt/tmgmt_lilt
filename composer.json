@@ -1,0 +1,22 @@
+{
+  "name": "drupal/tmgmt_lilt",
+  "description": "The Lilt Translator module that integrates with the Translation Management Tool",
+  "type": "drupal-module",
+  "homepage": "https://www.drupal.org/project/tmgmt_lilt",
+  "support": {
+    "issues": "https://github.com/lilt/tmgmt_lilt/issues",
+    "documentation": "https://github.com/lilt/tmgmt_lilt",
+    "source": "https://cgit.drupalcode.org/tmgmt_lilt"
+  },
+  "license": "GPL-2.0+",
+  "authors": [
+    {
+      "name": "Lilt",
+      "homepage": "https://github.com/lilt",
+      "role": "Maintainer"
+    }
+  ],
+  "require": {
+    "drupal/tmgmt": "^1.0"
+  }
+}

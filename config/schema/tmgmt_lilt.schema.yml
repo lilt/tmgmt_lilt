@@ -1,0 +1,9 @@
+tmgmt.translator.settings.lilt:
+  type: mapping
+  mapping:
+    lilt_service_url:
+      type: string
+      label: Lilt API url
+    lilt_api_key:
+      type: string
+      label: Lilt API key
