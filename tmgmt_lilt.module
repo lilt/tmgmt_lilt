@@ -103,7 +103,7 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
   $remote = LiltTranslator::getJobItemMapping($job_item);
   list('module_name' => $module_name, 'document_id' => $document_id, 'project_id' => $project_id) = $remote;
   /** @var array $lilt_doc */
-  $lilt_doc = $plugin->getLiltDocument($project_id, $document_id);
+  $lilt_doc = $plugin->getLiltDocument($document_id);
   if (empty($lilt_doc) || !array_key_exists('status', $lilt_doc)) {
     return;
   }

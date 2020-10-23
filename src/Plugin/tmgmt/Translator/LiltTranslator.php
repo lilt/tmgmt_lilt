@@ -88,17 +88,14 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $mapping = end($mappings);
     $project_id = $mapping->remote_identifier_2->value;
     $project_info = $this->getLiltProject($project_id);
-    if (!in_array($project_info['status'], ['in_creation', 'in_progress'])) {
+    if (!in_array($project_info['status'], ['inProgress', 'inReview', ['inQA']])) {
       $job->addMessage('Could not cancel the project "@job_title" with status "@status"', [
         '@status' => $project_info['status'],
         '@job_title' => $job->label(),
       ]);
       return FALSE;
     }
-    if ($project_info['status'] != 'in_creation') {
-      $this->pauseLiltProject($project_id);
-    }
-    $this->cancelLiltProject($project_id);
+    $this->archiveLiltProject($project_id);
     $job->aborted();
     return TRUE;
   }
@@ -134,7 +131,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
-   * Cancel Lilt project.
+   * Archive Lilt project.
    *
    * @param string $project_id
    *   Lilt project id.
@@ -142,14 +139,21 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @return array|int|null|false
    *   Result of the API request or FALSE.
    */
-  public function cancelLiltProject($project_id) {
+  public function archiveLiltProject($project_id) {
     try {
-      // @TODO: Remove Project
-      $result = FALSE;
+      if (!$this->translator) {
+        $this->setTranslator($job->getTranslator());
+      }
+      $mappings = $job->getRemoteMappings();
+      $mapping = end($mappings);
+      $project_id = $mapping->remote_identifier_2->value;
+      $project_info = $this->getLiltProject($project_id);
+      $project_info['archived'] = TRUE;
+      $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
       return $result;
     }
     catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not cancel the Lilt Project: @error', ['@error' => $e->getMessage()]);
+      \Drupal::logger('tmgmt_lilt')->error('Could not archive the Lilt Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
   }
@@ -287,7 +291,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     // Succeed:
     if (count($errors) == 0 && !empty($created)) {
       if (!$job->isRejected()) {
-        $mappings = $job->getRemoteMappings();
         $job->setState(Job::STATE_ACTIVE, 'The translation job has been submitted.');
       }
       \Drupal::messenger()->addMessage(t('@created document(s) was(were) created in Lilt for Job "@job_label".', [
@@ -539,15 +542,13 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   /**
    * Get Lilt document.
    *
-   * @param string $project_id
-   *   Lilt project id.
    * @param string $document_id
    *   Lilt document id.
    *
    * @return array|int|null|false
    *   Result of the API request or FALSE.
    */
-  public function getLiltDocument($project_id, $document_id) {
+  public function getLiltDocument($document_id) {
     try {
       return $this->sendApiRequest('documents?id=' . $document_id, 'GET');
     }
@@ -688,27 +689,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     // Import given data using XLIFF converter. Specify that passed content is
     // not a file.
     return $xliff_converter->import($data, FALSE);
-  }
-
-  /**
-   * Pause Lilt project.
-   *
-   * @param string $project_id
-   *   Lilt project id.
-   *
-   * @return array|int|null|false
-   *   Result of the API request or FALSE.
-   */
-  public function pauseLiltProject($project_id) {
-    try {
-      // @TODO: Pause Project
-      $result = FALSE;
-      return $result;
-    }
-    catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not pause the Lilt Project: @error', ['@error' => $e->getMessage()]);
-    }
-    return FALSE;
   }
 
   /**
