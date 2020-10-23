@@ -249,7 +249,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       }
       $message = t('Exception occurred while creating a Document for the job item "@job_item": @error.', [
         '@job_item' => $job_item->label(),
-        '@error' => $e,
+        '@error' => $e->getMessage(),
       ]);
       $job->addMessage($message->render(), [], 'debug');
 
@@ -471,6 +471,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $translated = $context['results']['translated'];
     $errors = $context['results']['errors'];
     $job = $job_item->getJob();
+
     /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
     $translator_plugin->setTranslator($job->getTranslator());
@@ -487,7 +488,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       catch (TMGMTException $e) {
         $job->addMessage('Exception occurred while fetching the job item "@job_item": @error.', [
           '@job_item' => $job_item->label(),
-          '@error' => $e,
+          '@error' => $e->getMessage(),
         ], 'error');
         $errors[] = 'Exception occurred while fetching the job item ' . $job_item->label();
       }
@@ -601,7 +602,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     }
     catch (\Exception $e) {
       $message = t('Exception occurred while getting remote languages: @error.', [
-        '@error' => $e,
+        '@error' => $e->getMessage(),
       ]);
       \Drupal::logger('tmgmt_lilt')->error($message);
     }
