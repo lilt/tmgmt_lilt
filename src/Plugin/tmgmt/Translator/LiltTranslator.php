@@ -139,6 +139,30 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @return array|int|null|false
    *   Result of the API request or FALSE.
    */
+  public function archiveLiltProject($project_id) {
+    try {
+      $project_info = $this->getLiltProject($project_id);
+      $project_info['archived'] = TRUE;
+      // Add a valid amount since we're not concerned with review % when archiving.
+      $project_info['sample_review_percentage'] = 20;
+      $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_lilt')->error('Could not archive the Lilt Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Delete Lilt project.
+   *
+   * @param string $project_id
+   *   Lilt project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
   public function deleteLiltProject($project_id) {
     try {
       $project_info = $this->getLiltProject($project_id);
@@ -387,30 +411,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
-   * Delete Lilt project.
-   *
-   * @param string $project_id
-   *   Lilt project id.
-   *
-   * @return array|int|null|false
-   *   Result of the API request or FALSE.
-   */
-  public function archiveLiltProject($project_id) {
-    try {
-      $project_info = $this->getLiltProject($project_id);
-      $project_info['archived'] = TRUE;
-      // Add a valid amount since we're not concerned with review % when archiving.
-      $project_info['sample_review_percentage'] = 20;
-      $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
-      return $result;
-    }
-    catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not archive the Lilt Project: @error', ['@error' => $e->getMessage()]);
-    }
-    return FALSE;
-  }
-
-  /**
    * Batch 'finished' callback for pull Job translations process.
    *
    * @param bool $success
@@ -542,75 +542,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
-   * Gets the Lilt translation memories.
-   *
-   * @return array|int|null
-   *   The keyed array (ID => NAME) of objects containing all translation memories.
-   */
-  public function getTranslationMemories() {
-    $output = [];
-    $memories = $this->sendApiRequest('memories');
-    if (is_array($memories)) {
-      foreach ($memories as $memory) {
-        $output[$memory['id']] = $memory['name'];
-      }
-    }
-    return $output;
-  }
-
-  /**
-   * Get Lilt document.
-   *
-   * @param string $document_id
-   *   Lilt document id.
-   *
-   * @return array|int|null|false
-   *   Result of the API request or FALSE.
-   */
-  public function getLiltDocument($document_id) {
-    try {
-      return $this->sendApiRequest('documents?id=' . $document_id, 'GET');
-    }
-    catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not get the Lilt Document: @error', ['@error' => $e->getMessage()]);
-    }
-    return [];
-  }
-
-  /**
-   * Gets the service API root endpoint for any metadata.
-   *
-   * @return array|int|null
-   *   API info.
-   */
-  public function getServiceRoot() {
-    return $this->sendApiRequest('');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getSupportedRemoteLanguages(TranslatorInterface $translator) {
-    $remote_languages = [];
-    $this->setTranslator($translator);
-    try {
-      $supported_languages = $this->getLanguages();
-      if (!$supported_languages) {
-        return $remote_languages;
-      }
-      $remote_languages = $supported_languages['code_to_name'];
-    }
-    catch (\Exception $e) {
-      $message = t('Exception occurred while getting remote languages: @error.', [
-        '@error' => $e->getMessage(),
-      ]);
-      \Drupal::logger('tmgmt_lilt')->error($message);
-    }
-    asort($remote_languages);
-    return $remote_languages;
-  }
-
-  /**
    * Get remote mapping for a Job Item.
    *
    * @param \Drupal\tmgmt\JobItemInterface $job_item
@@ -645,6 +576,25 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
+   * Get Lilt document.
+   *
+   * @param string $document_id
+   *   Lilt document id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function getLiltDocument($document_id) {
+    try {
+      return $this->sendApiRequest('documents?id=' . $document_id, 'GET');
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_lilt')->error('Could not get the Lilt Document: @error', ['@error' => $e->getMessage()]);
+    }
+    return [];
+  }
+
+  /**
    * Get Lilt project.
    *
    * @param string $project_id
@@ -662,6 +612,56 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       \Drupal::logger('tmgmt_lilt')->error('Could not get the Lilt Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
+  }
+
+  /**
+   * Gets the Lilt translation memories.
+   *
+   * @return array|int|null
+   *   The keyed array (ID => NAME) of objects containing all translation memories.
+   */
+  public function getTranslationMemories() {
+    $output = [];
+    $memories = $this->sendApiRequest('memories');
+    if (is_array($memories)) {
+      foreach ($memories as $memory) {
+        $output[$memory['id']] = $memory['name'];
+      }
+    }
+    return $output;
+  }
+
+  /**
+   * Gets the service API root endpoint for any metadata.
+   *
+   * @return array|int|null
+   *   API info.
+   */
+  public function getServiceRoot() {
+    return $this->sendApiRequest('');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getSupportedRemoteLanguages(TranslatorInterface $translator) {
+    $remote_languages = [];
+    $this->setTranslator($translator);
+    try {
+      $supported_languages = $this->getLanguages();
+      if (!$supported_languages) {
+        return $remote_languages;
+      }
+      $remote_languages = $supported_languages['code_to_name'];
+    }
+    catch (\Exception $e) {
+      $message = t('Exception occurred while getting remote languages: @error.', [
+        '@error' => $e->getMessage(),
+      ]);
+      \Drupal::logger('tmgmt_lilt')->error($message);
+    }
+    asort($remote_languages);
+    return $remote_languages;
   }
 
   /**
