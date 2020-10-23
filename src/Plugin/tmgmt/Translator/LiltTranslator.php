@@ -176,7 +176,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    */
   public function checkLiltAuth() {
     try {
-      if ($this->getLanguages()) {
+      if ($this->getServiceRoot()) {
         return TRUE;
       }
     }
@@ -584,6 +584,16 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       \Drupal::logger('tmgmt_lilt')->error('Could not get the Lilt Document: @error', ['@error' => $e->getMessage()]);
     }
     return [];
+  }
+
+  /**
+   * Gets the service API root endpoint for any metadata.
+   *
+   * @return array|int|null
+   *   API info.
+   */
+  public function getServiceRoot() {
+    return $this->sendApiRequest('');
   }
 
   /**

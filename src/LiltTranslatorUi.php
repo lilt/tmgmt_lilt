@@ -178,32 +178,13 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
       return;
     }
 
-    $plugin = $translator->getPlugin();
-    $plugin->setTranslator($translator);
-    $remote = LiltTranslator::getJobItemMapping($item);
-    list('document_id' => $document_id, 'project_id' => $project_id) = $remote;
-
-    // Check document status. Only "in_review" documents can be completed.
-    $lilt_doc = $plugin->getLiltDocument($project_id, $document_id);
-    // @TODO: Complete document in Lilt.
-    $result = 'hi';
-
-    // Success:
-    if (!empty($result)) {
-      $item->getJob()->addMessage('Lilt Document "@document_id" was completed', [
-          '@document_id' => $document_id,
-        ]);
-
-      \Drupal::messenger()->addMessage(t('Lilt Document "@document_id" was completed', [
+    // Log message.
+    $item->getJob()->addMessage('Lilt Document "@document_id" was completed', [
         '@document_id' => $document_id,
-      ]));
-    }
-    // Fail:
-    else {
-      \Drupal::messenger()->addError(t('Could not complete Lilt Document "@document_id"', [
-          '@document_id' => $document_id,
-        ], 'error'));
-    }
+      ]);
+    \Drupal::messenger()->addMessage(t('Lilt Document "@document_id" was completed', [
+      '@document_id' => $document_id,
+    ]));
   }
 
   /**
@@ -218,12 +199,7 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
       return;
     }
 
-    /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $plugin */
-    $plugin = $translator->getPlugin();
-    $plugin->setTranslator($translator);
-    $remote = LiltTranslator::getJobItemMapping($item);
-    list('document_id' => $document_id, 'project_id' => $project_id) = $remote;
-    $lilt_doc = $plugin->getLiltDocument($project_id, $document_id);
+    // Nothing to validate.
   }
 
   /**
