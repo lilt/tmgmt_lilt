@@ -88,7 +88,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $mapping = end($mappings);
     $project_id = $mapping->remote_identifier_2->value;
     $project_info = $this->getLiltProject($project_id);
-    if (!in_array($project_info['status'], ['inProgress', 'inReview', ['inQA']])) {
+    if (in_array($project_info['status'], ['inProgress', 'inReview', 'inQA'])) {
       $job->addMessage('Could not cancel the project "@job_title" with status "@status"', [
         '@status' => $project_info['status'],
         '@job_title' => $job->label(),
@@ -139,21 +139,17 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @return array|int|null|false
    *   Result of the API request or FALSE.
    */
-  public function archiveLiltProject($project_id) {
+  public function deleteLiltProject($project_id) {
     try {
-      if (!$this->translator) {
-        $this->setTranslator($job->getTranslator());
-      }
-      $mappings = $job->getRemoteMappings();
-      $mapping = end($mappings);
-      $project_id = $mapping->remote_identifier_2->value;
       $project_info = $this->getLiltProject($project_id);
-      $project_info['archived'] = TRUE;
-      $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
-      return $result;
+      if (!isset($project_info['id'])) {
+        throw new TMGMTException('Could not delete Lilt Project @id', ['@id' => $project_id]);
+      }
+
+      return $this->sendApiRequest('projects', 'DELETE', ['id' => $project_info['id']]);
     }
     catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not archive the Lilt Project: @error', ['@error' => $e->getMessage()]);
+      \Drupal::logger('tmgmt_lilt')->error('Could not delete the Lilt Project: @error', ['@error' => $e->getMessage()]);
     }
     return FALSE;
   }
@@ -333,12 +329,10 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   public function createLiltProject(JobInterface $job) {
     // Prepare parameters for Project API.
     $name = $job->get('label')->value ?: 'Drupal Lilt project ' . $job->id();
-    // @TODO: Retrieve selected TM
-    // @TODO: Retrieve specified DueDate
     $params = [
         'name' => $name,
-        'memory_id' => 46558,
-        //'due_date' => 0,
+        'memory_id' => $job->getSetting('memory_id'),
+        'due_date' => $job->getSetting('due_date')->format('U'),
         'metadata' => [
           'connectorType' => 'drupal',
           'notes' => 'Drupal Lilt project ' . $job->id(),
@@ -390,6 +384,30 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
 
     $res = json_decode($file_response->getBody(), true);
     return $res['id'];
+  }
+
+  /**
+   * Delete Lilt project.
+   *
+   * @param string $project_id
+   *   Lilt project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function archiveLiltProject($project_id) {
+    try {
+      $project_info = $this->getLiltProject($project_id);
+      $project_info['archived'] = TRUE;
+      // Add a valid amount since we're not concerned with review % when archiving.
+      $project_info['sample_review_percentage'] = 20;
+      $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
+      return $result;
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_lilt')->error('Could not archive the Lilt Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
   }
 
   /**
@@ -636,7 +654,8 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    */
   public function getLiltProject($project_id) {
     try {
-      return $this->sendApiRequest('projects?id=' . $project_id);
+      $projects = $this->sendApiRequest('projects?id=' . $project_id);
+      return (is_array($projects) && isset($projects[0])) ? $projects[0] : $projects;
     }
     catch (TMGMTException $e) {
       \Drupal::logger('tmgmt_lilt')->error('Could not get the Lilt Project: @error', ['@error' => $e->getMessage()]);

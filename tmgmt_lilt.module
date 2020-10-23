@@ -9,6 +9,7 @@ use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Database\Database;
 use Drupal\tmgmt\Entity\Job;
+use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt_lilt\LiltTranslatorUi;
 use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
@@ -135,4 +136,21 @@ function tmgmt_lilt_form_views_exposed_form_alter(&$form, $form_state, $form_id)
   if (!empty($view) && $view->id() == 'tmgmt_job_overview') {
     \Drupal::messenger()->addWarning(t('NOTE: Drupal word count may differ from Lilt.'));
   }
+}
+
+
+/**
+ * Implements hook_tmgmt_job_delete().
+ */
+function tmgmt_lilt_tmgmt_job_delete(JobInterface $job) {
+
+  if ($job->getState() == Job::STATE_UNPROCESSED) {
+    return;
+  }
+
+  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt') {
+    return;
+  }
+
+  // @TODO: Retrieve a Lilt PID from the deleted Job entity for Lilt Deletion.
 }
