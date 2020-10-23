@@ -89,8 +89,7 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
 
   /** @var Drupal\tmgmt\Entity\Job $job */
   $job = $job_item->getJob();
-  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt' || $job_item->bundle() != 'tmgmt_job_item'
-  ) {
+  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt' || $job_item->bundle() != 'tmgmt_job_item') {
     return;
   }
 
@@ -111,6 +110,8 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
 
   // Warnings:
   if (!$form_state->isRebuilding()) {
+    \Drupal::messenger()->addWarning(t('Please share any QA feedback with your services manager so the updates can be made in Lilt.'));
+
     if ($lilt_doc['status'] === 'inReview') {
       \Drupal::messenger()->addWarning(t('If content is not accepted within 7 days, it will be automatically validated by Lilt with no possible revision request.'));
     }
@@ -122,53 +123,7 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
     }
   }
 
-  // Only in review can be revisioned.
-  if ($lilt_doc['status'] != 'inReview') {
-    return;
-  }
 
-  // Revision request button:
-  $form['actions']['lilt_revision'] = [
-    '#type' => 'submit',
-    '#value' => t('Ask for revision in Lilt'),
-    '#validate' => [[LiltTranslatorUi::class, 'askForRevisionValidate']],
-    '#ajax' => [
-      'callback' => [LiltTranslatorUi::class, 'askForRevisionCallback'],
-    ],
-    '#attributes' => [
-      'class' => ['ask-for-revision-button'],
-    ],
-    '#limit_validation_errors' => [],
-    '#weight' => 21,
-  ];
-
-  $form['revision_message_wrapper'] = [
-    '#type' => 'container',
-    '#attributes' => ['id' => 'revision-message-wrapper'],
-  ];
-
-  // Revision request message field:
-  if ($form_state->isRebuilding() && $form_state->get('ask_for_revision') && $form_state->get('revision_message_sent') === NULL) {
-    $form['revision_message_wrapper']['revision_message'] = [
-      '#type' => 'textarea',
-      '#title' => t('Revision message'),
-      '#default_value' => '',
-      '#rows' => 3,
-      '#description' => t('Please enter revision message'),
-      '#weight' => 10,
-    ];
-    $form['revision_message_wrapper']['request_revision'] = [
-      '#type' => 'submit',
-      '#value' => t('Request for revision in Lilt'),
-      '#validate' => [[LiltTranslatorUi::class, 'sendRevisionRequestValidate']],
-      '#submit' => [[LiltTranslatorUi::class, 'sendRevisionRequestSubmit']],
-      '#ajax' => [
-        'callback' => [LiltTranslatorUi::class, 'sendRevisionRequestCallback'],
-      ],
-      '#weight' => 20,
-    ];
-    $form['actions']['lilt_revision']['#access'] = FALSE;
-  }
 }
 
 /**
