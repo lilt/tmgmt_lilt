@@ -390,35 +390,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
-   * Ask for document revision in Lilt.
-   *
-   * @param string $project_id
-   *   Lilt project id.
-   * @param string $document_id
-   *   Lilt document id.
-   * @param string $message
-   *   Revision message.
-   *
-   * @return array|int|null|false
-   *   Result of the API request or FALSE.
-   */
-  public function createLiltSupportMessage($project_id, $document_id, string $message) {
-    $params = [
-      'support_message' => [
-        'message' => $message,
-      ],
-    ];
-    try {
-      // @TODO: SUPPORT MESSAGE CALL
-      return FALSE;
-    }
-    catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not create Lilt support message: @error', ['@error' => $e->getMessage()]);
-    }
-    return [];
-  }
-
-  /**
    * Batch 'finished' callback for pull Job translations process.
    *
    * @param bool $success

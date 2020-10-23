@@ -30,40 +30,6 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
   const LILT_APP_URL = 'https://lilt.com/app/';
 
   /**
-   * Set a value in form_state to rebuild the form and fill with data.
-   *
-   * @param array $form
-   *   Form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   FormState.
-   */
-  public static function askForRevisionValidate(array &$form, FormStateInterface $form_state) {
-    $form_state->setRebuild();
-    $form_state->set('ask_for_revision', TRUE);
-    $form_state->clearErrors();
-    $form_state->setValidationComplete();
-  }
-
-  /**
-   * Ajax callback to show revision field.
-   *
-   * @param array $form
-   *   Form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   FormState.
-   *
-   * @return \Drupal\Core\Ajax\AjaxResponse
-   *   Ajax Response.
-   */
-  public static function askForRevisionCallback(array $form, FormStateInterface $form_state) {
-    $response = new AjaxResponse();
-    $response->addCommand(new ReplaceCommand('.ask-for-revision-button', $form['actions']['lilt_revision']));
-    $response->addCommand(new ReplaceCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
-
-    return $response;
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
@@ -200,87 +166,6 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     }
 
     // Nothing to validate.
-  }
-
-  /**
-   * Ajax callback to send revision message.
-   *
-   * @param array $form
-   *   Form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   FormState.
-   *
-   * @return \Drupal\Core\Ajax\AjaxResponse
-   *   Ajax Response.
-   */
-  public static function sendRevisionRequestCallback(array $form, FormStateInterface $form_state) {
-    $response = new AjaxResponse();
-
-    if (isset($form['revision_message_wrapper']['revision_message']) && $form_state->getError($form['revision_message_wrapper']['revision_message'])) {
-      $form['revision_message_wrapper']['status_messages'] = [
-        '#type' => 'status_messages',
-        '#weight' => 5,
-      ];
-      $response->addCommand(new HtmlCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
-      return $response;
-    }
-
-    $form['revision_message_wrapper']['status_messages'] = [
-      '#type' => 'status_messages',
-    ];
-    unset($form['revision_message_wrapper']['request_revision'], $form['revision_message_wrapper']['revision_message']);
-    $response->addCommand(new ReplaceCommand('#revision-message-wrapper', $form['revision_message_wrapper']));
-    $response->addCommand(new RemoveCommand('div.messages--warning'));
-
-    return $response;
-  }
-
-  /**
-   * Validation of revision message field.
-   *
-   * @param array $form
-   *   Form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   FormState.
-   */
-  public static function sendRevisionRequestValidate(array &$form, FormStateInterface $form_state) {
-    if (empty(trim($form_state->getValue('revision_message')))) {
-      $form_state->setErrorByName($form['revision_message_wrapper']['revision_message']['#name'], t('Please enter revision message'));
-      $form_state->setRebuild();
-    }
-  }
-
-  /**
-   * Submit for revision message field.
-   *
-   * @param array $form
-   *   Form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   FormState.
-   */
-  public static function sendRevisionRequestSubmit(array &$form, FormStateInterface $form_state) {
-    /** @var \Drupal\tmgmt\JobItemInterface $job_item */
-    $job_item = $form_state->getFormObject()->getEntity();
-
-    /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $plugin */
-    $plugin = $job_item->getTranslatorPlugin();
-    $plugin->setTranslator($job_item->getTranslator());
-
-    $remote = LiltTranslator::getJobItemMapping($job_item);
-    list('document_id' => $document_id, 'project_id' => $project_id) = $remote;
-    $message = $form_state->getValue('revision_message');
-    $result = $plugin->createLiltSupportMessage($project_id, $document_id, $message);
-
-    if (!empty($result)) {
-      \Drupal::messenger()->addMessage(t('Revision message was sent for Job item "@item_label".', [
-        '@item_label' => $job_item->label(),
-      ]));
-      $job_item->getJob()
-        ->addMessage('Revision message was sent for Document "@document_id".', [
-          '@document_id' => $document_id,
-        ]);
-      $form_state->set('revision_message_sent', TRUE);
-    }
   }
 
   /**
