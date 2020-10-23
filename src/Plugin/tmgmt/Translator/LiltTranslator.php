@@ -155,30 +155,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
-   * Delete Lilt project.
-   *
-   * @param string $project_id
-   *   Lilt project id.
-   *
-   * @return array|int|null|false
-   *   Result of the API request or FALSE.
-   */
-  public function deleteLiltProject($project_id) {
-    try {
-      $project_info = $this->getLiltProject($project_id);
-      if (!isset($project_info['id'])) {
-        throw new TMGMTException('Could not delete Lilt Project @id', ['@id' => $project_id]);
-      }
-
-      return $this->sendApiRequest('projects', 'DELETE', ['id' => $project_info['id']]);
-    }
-    catch (TMGMTException $e) {
-      \Drupal::logger('tmgmt_lilt')->error('Could not delete the Lilt Project: @error', ['@error' => $e->getMessage()]);
-    }
-    return FALSE;
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function checkAvailable(TranslatorInterface $translator) {
@@ -408,6 +384,30 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
 
     $res = json_decode($file_response->getBody(), true);
     return $res['id'];
+  }
+
+  /**
+   * Delete Lilt project.
+   *
+   * @param string $project_id
+   *   Lilt project id.
+   *
+   * @return array|int|null|false
+   *   Result of the API request or FALSE.
+   */
+  public function deleteLiltProject($project_id) {
+    try {
+      $project_info = $this->getLiltProject($project_id);
+      if (!isset($project_info['id'])) {
+        throw new TMGMTException('Could not delete Lilt Project @id', ['@id' => $project_id]);
+      }
+
+      return $this->sendApiRequest('projects', 'DELETE', ['id' => $project_info['id']]);
+    }
+    catch (TMGMTException $e) {
+      \Drupal::logger('tmgmt_lilt')->error('Could not delete the Lilt Project: @error', ['@error' => $e->getMessage()]);
+    }
+    return FALSE;
   }
 
   /**
