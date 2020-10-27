@@ -29,7 +29,7 @@ function tmgmt_lilt_entity_operation(EntityInterface $entity) {
     }
 
     $operations['lilt_view'] = [
-      'url' => Url::fromUri(LiltTranslatorUi::LILT_APP_URL . 'projects/details/' . $project_id, [
+      'url' => Url::fromUri(LiltTranslator::getLiltAppURL($entity->getTranslator()) . 'projects/details/' . $project_id, [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -51,7 +51,7 @@ function tmgmt_lilt_entity_operation(EntityInterface $entity) {
     }
 
     $operations['lilt_view'] = [
-      'url' => Url::fromUri(LiltTranslatorUi::LILT_APP_URL . 'projects/details/' . $project_id . '/edit-document/' . $document_id, [
+      'url' => Url::fromUri(LiltTranslator::getLiltAppURL($entity->getTranslator()) . 'projects/details/' . $project_id . '/edit-document/' . $document_id, [
         'attributes' => [
           'target' => '_blank',
         ],

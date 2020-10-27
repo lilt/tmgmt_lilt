@@ -2,6 +2,7 @@
 
 namespace Drupal\tmgmt_lilt;
 
+use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Ajax\RemoveCommand;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Datetime\DrupalDateTime;
@@ -23,13 +24,6 @@ use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
 class LiltTranslatorUi extends TranslatorPluginUiBase {
 
   /**
-   * Base URL for Lilt web app.
-   *
-   * @var string
-   */
-  const LILT_APP_URL = 'https://lilt.com/app/';
-
-  /**
    * {@inheritdoc}
    */
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
@@ -38,22 +32,32 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt\TranslatorInterface $translator */
     $translator = $form_state->getFormObject()->getEntity();
 
-    $form['lilt_service_url'] = [
-      '#type' => 'textfield',
-      '#title' => t('Lilt API url'),
-      '#default_value' => $translator->getSetting('lilt_service_url') ?: 'https://lilt.com/2',
-      '#description' => t('Please enter the Lilt API base url.'),
-      '#required' => TRUE,
-    ];
+    $app_url = UrlHelper::isValid($translator->getSetting('lilt_app_url')) ? $translator->getSetting('lilt_app_url') : 'https://lilt.com/app/';
+    $service_url = UrlHelper::isValid($translator->getSetting('lilt_service_url')) ? $translator->getSetting('lilt_service_url') : 'https://lilt.com/2';
+
     $form['lilt_api_key'] = [
       '#type' => 'textfield',
       '#title' => t('Lilt API key'),
       '#default_value' => $translator->getSetting('lilt_api_key') ?: '',
       '#description' => t("Please enter the Lilt API key. You can find it <a href=:api_key_url  target='_blank'>here</a>", [
-        ':api_key_url' => Url::fromUri(LiltTranslatorUi::LILT_APP_URL . 'organizations/apiaccess')->toString(),
+        ':api_key_url' => Url::fromUri($app_url . 'organizations/apiaccess')->toString(),
       ]),
       '#required' => TRUE,
 
+    ];
+    $form['lilt_service_url'] = [
+      '#type' => 'textfield',
+      '#title' => t('Lilt API URL'),
+      '#default_value' => $service_url,
+      '#description' => t('Please enter the Lilt API base URL.'),
+      '#required' => TRUE,
+    ];
+    $form['lilt_app_url'] = [
+      '#type' => 'textfield',
+      '#title' => t('Lilt App URL'),
+      '#default_value' => $app_url,
+      '#description' => t('Please enter the Lilt App base url.'),
+      '#required' => TRUE,
     ];
     $form['lilt_log_api'] = [
       '#type' => 'checkbox',
@@ -199,7 +203,8 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     $plugin = $translator->getPlugin();
     $plugin->setTranslator($translator);
     if (!$plugin->checkLiltAuth()) {
-      $form_state->setErrorByName('settings][service_url', t('Authentication failed. Please check the API key and secret.'));
+      $form_state->setErrorByName('settings][lilt_api_key', t('Authentication failed. Please check the API key or API URL.'));
+      $form_state->setErrorByName('settings][lilt_service_url', t('Authentication failed. Please check the API key or API URL.'));
     }
   }
 

@@ -3,10 +3,13 @@ tmgmt.translator.settings.lilt:
   mapping:
     lilt_service_url:
       type: string
-      label: Lilt API url
+      label: Lilt API URL
     lilt_api_key:
       type: string
       label: Lilt API key
+    lilt_app_url:
+      type: string
+      label: Lilt App URL
     lilt_log_api:
       type: boolean
       label: Lilt API logging
