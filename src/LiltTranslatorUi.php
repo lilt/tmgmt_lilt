@@ -139,9 +139,9 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
    * {@inheritdoc}
    */
   public function reviewFormSubmit(array $form, FormStateInterface $form_state, JobItemInterface $item) {
-    /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $translator */
-    $translator = $item->getTranslator();
-    if ($translator->getPluginId() != 'lilt') {
+    $remote = LiltTranslator::getJobItemMapping($item);
+    list('module_name' => $module_name, 'document_id' => $document_id, 'project_id' => $project_id) = $remote;
+    if ($module_name != 'tmgmt_lilt') {
       return;
     }
     if (empty($form['actions']['accept']) || $form_state->getTriggeringElement()['#value'] != $form['actions']['accept']['#value']) {
@@ -149,11 +149,13 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     }
 
     // Log message.
-    $item->getJob()->addMessage('Lilt Document "@document_id" was completed', [
+    $item->getJob()->addMessage('Lilt Document @document_id for Project @project_id was completed', [
         '@document_id' => $document_id,
+        '@project_id' => $project_id,
       ]);
-    \Drupal::messenger()->addMessage(t('Lilt Document "@document_id" was completed', [
+    \Drupal::messenger()->addMessage(t('Lilt Document @document_id for Project @project_id was completed', [
       '@document_id' => $document_id,
+      '@project_id' => $project_id,
     ]));
   }
 
