@@ -89,7 +89,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $project_id = $mapping->remote_identifier_2->value;
     $project_info = $this->getLiltProject($project_id);
     if (in_array($project_info['status'], ['inProgress', 'inReview', 'inQA'])) {
-      $job->addMessage('Could not cancel the project "@job_title" with status "@status"', [
+      $job->addMessage('Could not cancel the project "@job_title" with status at "@status"', [
         '@status' => $project_info['status'],
         '@job_title' => $job->label(),
       ]);
