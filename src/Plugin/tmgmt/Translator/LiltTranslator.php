@@ -820,7 +820,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $this->setTranslator($job->getTranslator());
     try {
       $project_id = $this->createLiltProject($job);
-      $job->addMessage('Created a new project in Lilt with the id: @id', ['@id' => $project_id], 'debug');
+      $job->addMessage('Created a new Project in Lilt with the id: @id', ['@id' => $project_id], 'debug');
 
       /** @var \Drupal\tmgmt\Entity\JobItem $job_item */
       foreach ($job_items as $job_item) {
