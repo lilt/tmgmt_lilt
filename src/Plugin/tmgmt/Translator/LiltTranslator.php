@@ -143,8 +143,9 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     try {
       $project_info = $this->getLiltProject($project_id);
       $project_info['archived'] = TRUE;
-      // Add a valid amount since we're not concerned with review % when archiving.
-      $project_info['sample_review_percentage'] = 20;
+      // The Lilt API enforces a range on this property. Unset from PUT body in case property is out range.
+      // @see https://lilt.com/docs/api#operation--projects-put
+      unset($project_info['sample_review_percentage']);
       $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
       return $result;
     }
