@@ -361,7 +361,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $service_url = $this->translator->getSetting('lilt_service_url');
     $api_key = $this->translator->getSetting('lilt_api_key');
     if (!$service_url || !$api_key) {
-      throw new TMGMTException('Could not call Lilt API when api_key or service_url is not set.');
+      throw new TMGMTException('Could not call Lilt API when API key or URL is not set.');
     }
 
     // Set parameters to request for upload properties from Lilt API.
@@ -576,6 +576,19 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
+   * Get the Lilt App base URL.
+   *
+   * @param \Drupal\tmgmt\TranslatorInterface $translator
+   *   TMGMT Translator.
+   *
+   * @return string
+   *   The Lilt App base URL.
+   */
+  static function getLiltAppURL(TranslatorInterface $translator) {
+    return $translator->getSetting('lilt_app_url');
+  }
+
+  /**
    * Get Lilt document.
    *
    * @param string $document_id
@@ -752,7 +765,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
 
     $api_key = $this->translator->getSetting('lilt_api_key');
     if (!$api_key) {
-      \Drupal::logger('tmgmt_lilt')->warning('Attempt to call Lilt API when api_key is not set: ' . $path);
+      \Drupal::logger('tmgmt_lilt')->warning('Could not call Lilt API when API key or URL is not set: ' . $path);
       return [];
     }
     else {
