@@ -370,6 +370,14 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       'name' => $file_name,
       'project_id' => $project_id,
     ];
+    $optional_params = ['lilt_pretranslation' => 'pretranslate', 'lilt_auto_accept' => 'auto_accept', 'lilt_config_id' =>
+    'config_id'];
+    foreach ($optional_params as $param => $query) {
+      $param_value = $this->translator->getSetting($param);
+      if (isset($param_value) && $param_value != '') {
+        $params[$query] = $param_value;
+      }
+    }
 
     // Set headers and body for file PUT request.
     $options['headers']['Authorization'] = 'Basic ' . base64_encode($api_key . ':' . $api_key);
