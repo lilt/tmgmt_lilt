@@ -639,15 +639,20 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   /**
    * Gets the Lilt translation memories.
    *
+   * @param string $trglang
+   *   An optional ISO 639-1 language code to filter for.
+   *
    * @return array|int|null
    *   The keyed array (ID => NAME) of objects containing all translation memories.
    */
-  public function getTranslationMemories() {
+  public function getTranslationMemories($trglang = '') {
     $output = [];
     $memories = $this->sendApiRequest('memories');
     if (is_array($memories)) {
       foreach ($memories as $memory) {
-        $output[$memory['id']] = $memory['name'];
+        if ($trglang == '' || $memory['trglang'] == $trglang) {
+          $output[$memory['id']] = $memory['name'];
+        }
       }
     }
     return $output;
