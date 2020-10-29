@@ -69,7 +69,7 @@ function tmgmt_lilt_entity_operation(EntityInterface $entity) {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function tmgmt_lilt_form_tmgmt_job_abort_form_alter(&$form) {
+function tmgmt_lilt_form_tmgmt_job_abort_form_alter(&$form, $form_state) {
   /** @var Drupal\tmgmt\Entity\Job $job */
   $job = \Drupal::routeMatch()->getParameter('tmgmt_job');
   if (empty($job) || !$job->hasTranslator() || $job->getTranslatorId() != 'lilt') {
@@ -78,6 +78,52 @@ function tmgmt_lilt_form_tmgmt_job_abort_form_alter(&$form) {
 
   $confirmation_message = t("This will send a request to Lilt to abort the job.");
   $form['description']['#markup'] = $confirmation_message->render();
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function tmgmt_lilt_form_tmgmt_job_delete_form_alter(&$form, $form_state) {
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = $form_state->getFormObject()->getEntity();
+
+  if ($job->getState() == Job::STATE_UNPROCESSED) {
+    return;
+  }
+
+  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt') {
+    return;
+  }
+
+  $jobs_items = $job->getItems();
+  if (!empty($jobs_items)) {
+    $remote = LiltTranslator::getJobItemMapping(reset($jobs_items));
+    $form['tmgmt_lilt_project_id'] = array(
+      '#type' => 'hidden',
+      '#value' => $remote['project_id'],
+    );
+    $form['actions']['submit']['#submit'][] = 'tmgmt_lilt_form_tmgmt_job_delete_form_delete_submit';
+  }
+}
+
+/**
+ * Handle job deletion confirmation by archiving project on Lilt.
+ *
+ * @param array $form
+ *   An associative array containing the structure of the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form.
+ */
+function tmgmt_lilt_form_tmgmt_job_delete_form_delete_submit(array $form, FormStateInterface $form_state) {
+  /** @var Drupal\tmgmt\Entity\Job $job */
+  $job = $form_state->getFormObject()->getEntity();
+
+  if ($project_id = $form_state->getValue('tmgmt_lilt_project_id')) {
+    $translator = $job->getTranslatorPlugin();
+    $translator->setTranslator($job->getTranslator());
+    $translator->archiveLiltProject($project_id);
+    $job->addMessage('Job deleted. Archived Lilt Project @project_id.', ['@project_id' => $project_id], 'debug');
+  }
 }
 
 /**
@@ -138,7 +184,9 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
  *   The current state of the form.
  */
 function tmgmt_lilt_form_tmgmt_job_item_edit_form_accept_submit(array $form, FormStateInterface $form_state) {
+  /** @var Drupal\tmgmt\Entity\JobItem $job_item */
   $job_item = $form_state->getFormObject()->getEntity();
+  /** @var Drupal\tmgmt\Entity\Job $job */
   $job = $job_item->getJob();
 
   if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt') {
@@ -159,27 +207,10 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_accept_submit(array $form, For
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function tmgmt_lilt_form_views_exposed_form_alter(&$form, $form_state, $form_id) {
+function tmgmt_lilt_form_views_exposed_form_alter(&$form, $form_state) {
   $view = $form_state->get('view');
 
   if (!empty($view) && $view->id() == 'tmgmt_job_overview') {
     \Drupal::messenger()->addWarning(t('NOTE: Drupal word count may differ from Lilt.'));
   }
-}
-
-
-/**
- * Implements hook_tmgmt_job_delete().
- */
-function tmgmt_lilt_tmgmt_job_delete(JobInterface $job) {
-
-  if ($job->getState() == Job::STATE_UNPROCESSED) {
-    return;
-  }
-
-  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt') {
-    return;
-  }
-
-  // @TODO: Retrieve a Lilt PID from the deleted Job entity for Lilt Deletion.
 }
