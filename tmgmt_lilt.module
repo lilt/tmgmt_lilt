@@ -6,6 +6,7 @@
  */
 
 use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Database\Database;
 use Drupal\tmgmt\Entity\Job;
@@ -98,6 +99,9 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
     return;
   }
 
+  // Add submission handler to check for completed projects:
+  $form['actions']['accept']['#submit'][] = 'tmgmt_lilt_form_tmgmt_job_item_edit_form_accept_submit';
+
   /** @var Drupal\tmgmt_lilt\LiltTranslator $plugin */
   $plugin = $job_item->getTranslatorPlugin();
   $plugin->setTranslator($job_item->getTranslator());
@@ -123,8 +127,33 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
       \Drupal::messenger()->addWarning(t('Please note that Lilt Document for this job item is already completed.'));
     }
   }
+}
 
+/**
+ * Handle job item accept submissions to archive Lilt projects on TMGMT job completion.
+ *
+ * @param array $form
+ *   An associative array containing the structure of the form.
+ * @param \Drupal\Core\Form\FormStateInterface $form_state
+ *   The current state of the form.
+ */
+function tmgmt_lilt_form_tmgmt_job_item_edit_form_accept_submit(array $form, FormStateInterface $form_state) {
+  $job_item = $form_state->getFormObject()->getEntity();
+  $job = $job_item->getJob();
 
+  if (!$job->hasTranslator() || !$job->getTranslatorId() == 'lilt') {
+    return;
+  }
+
+  if ($job->getState() == Job::STATE_FINISHED) {
+    $remote = LiltTranslator::getJobItemMapping($job_item);
+
+    $translator = $job->getTranslatorPlugin();
+    $translator->setTranslator($job->getTranslator());
+    $translator->archiveLiltProject($remote['project_id']);
+
+    $job->addMessage('Job finished. Archived Lilt Project @project_id.', ['@project_id' => $remote['project_id']], 'debug');
+  }
 }
 
 /**
