@@ -66,6 +66,32 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
       '#description' => t('Enables Watchdog logging of Lilt API requests.'),
       '#required' => FALSE,
     ];
+    $form['lilt_pretranslation'] = [
+      '#type' => 'select',
+      '#title' => t('Lilt Pretranslation'),
+      '#default_value' => $translator->getSetting('lilt_pretranslation'),
+      '#description' => t('The optional pre-translation option to use for uploaded documents.'),
+      '#options' => [
+        '' => t('Null (none)'),
+        'tm' => t('Translation Memory'),
+        'tm+mt' => t('Translation Memory & Machine Translation'),
+      ],
+      '#required' => FALSE,
+    ];
+    $form['lilt_auto_accept'] = [
+      '#type' => 'checkbox',
+      '#title' => t('Lilt Auto-accept'),
+      '#default_value' => $translator->getSetting('lilt_auto_accept') ?: FALSE,
+      '#description' => t('Auto-accept pre-matched translations.'),
+      '#required' => FALSE,
+    ];
+    $form['lilt_config_id'] = [
+      '#type' => 'textfield',
+      '#title' => t('Lilt Config ID'),
+      '#default_value' => $translator->getSetting('lilt_config_id'),
+      '#description' => t('An optional pararameter to specify an import configuration to be applied when extracting translatable content from the document.'),
+      '#required' => FALSE,
+    ];
     $form += parent::addConnectButton();
 
     return $form;

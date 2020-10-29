@@ -13,3 +13,12 @@ tmgmt.translator.settings.lilt:
     lilt_log_api:
       type: boolean
       label: Lilt API logging
+    lilt_pretranslation:
+      type: string
+      label: Lilt Pretranslation
+    lilt_auto_accept:
+      type: boolean
+      label: Lilt Auto-accept
+    lilt_config_id:
+      type: integer
+      label: Lilt Config ID
