@@ -128,6 +128,17 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
         '#disabled' => !$ready_translation,
       ];
     }
+    else  {
+      if ($project_id = LiltTranslator::getJobProjectId($job)) {
+        $project_url = Url::fromUri(LiltTranslator::getLiltAppURL($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
+        $form['lilt_status'] = [
+          '#markup' => t("<span>The <a href=:project_url  target='_blank'>Lilt translation project</a> has been archived.</span>", [
+            ':project_url' => $project_url,
+          ]),
+          '#weight' => -10,
+        ];
+      }
+    }
 
     return $form;
   }
@@ -230,6 +241,9 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
   public function submitPullTranslations(array $form, FormStateInterface $form_state) {
     /** @var \Drupal\tmgmt\Entity\Job $job */
     $job = $form_state->getFormObject()->getEntity();
+
+    // Remove destination that may be set so we can redirect to job admin page.
+    \Drupal::request()->query->remove('destination');
 
     /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $translator_plugin */
     $translator_plugin = $job->getTranslator()->getPlugin();
