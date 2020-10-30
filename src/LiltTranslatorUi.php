@@ -126,6 +126,8 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $translator_plugin */
     $translator_plugin = $this->getTranslatorPluginForJob($job);
 
+    $tm_filter = $job->getTargetLangcode();
+    $tm_filter = (strpos($tm_filter, '-') !== FALSE) ? explode('-', $tm_filter)[0] : $tm_filter;
     $settings['due_date'] = [
       '#title' => t('Due Date'),
       '#type' => 'datetime',
@@ -139,7 +141,7 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
       '#type' => 'select',
       '#default_value' => $job->getSetting('memory_id'),
       '#description' => t('The translation memory to use for the job.'),
-      '#options' => $translator_plugin->getTranslationMemories(),
+      '#options' => $translator_plugin->getTranslationMemories($tm_filter),
     ];
 
     return $settings;
