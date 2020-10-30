@@ -15,7 +15,6 @@ use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt_lilt\LiltTranslatorUi;
 use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
 
-
 /**
  * Implements hook_entity_operation().
  */
