@@ -18,7 +18,6 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use function GuzzleHttp\Psr7\parse_query;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Lilt translation plugin controller.
@@ -269,9 +268,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    *   Results.
    * @param array $operations
    *   Operations.
-   *
-   * @return \Symfony\Component\HttpFoundation\RedirectResponse|false
-   *   Redirects to jobs overview page if success.
    */
   public static function createDocumentForJobItemBatchFinish($success, array $results, array $operations) {
 
@@ -294,8 +290,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
         '@created' => $created,
         '@job_label' => $job->label(),
       ]));
-      $jobs_list_url = Url::fromRoute('view.tmgmt_job_overview.page_1')->toString();
-      return new RedirectResponse($jobs_list_url);
     }
     // Fail:
     elseif (!empty($created)) {
