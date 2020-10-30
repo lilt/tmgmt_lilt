@@ -242,7 +242,7 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     /** @var \Drupal\tmgmt\Entity\Job $job */
     $job = $form_state->getFormObject()->getEntity();
 
-    // Remove destination that may be set so we can redirect to job admin page.
+    // Remove destination override so we can redirect to job admin page.
     \Drupal::request()->query->remove('destination');
 
     /** @var \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator $translator_plugin */
