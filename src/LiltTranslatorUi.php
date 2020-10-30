@@ -104,11 +104,28 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
     $form = [];
 
     if ($job->isActive()) {
+      $project_id = LiltTranslator::getJobProjectId($job);
+      $translator_plugin = $this->getTranslatorPluginForJob($job);
+      $project_info = $translator_plugin->getLiltProject($project_id);
+
+      $ready_translation = ($project_info['state'] == 'done');
+      $project_url = Url::fromUri(LiltTranslator::getLiltAppURL($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
+      if (!$ready_translation) {
+        \Drupal::messenger()->addWarning(t("The <a href=:project_url  target='_blank'>Lilt translation project</a> for this job hasn't completed yet.", [
+        ':project_url' => $project_url,
+        ]));
+      } else {
+        \Drupal::messenger()->addMessage(t("The <a href=:project_url  target='_blank'>Lilt translation project</a> for this job has completed. The <strong>Pull translations</strong> button will retrieve the translations.", [
+        ':project_url' => $project_url,
+        ]));
+      }
+
       $form['actions']['pull'] = [
         '#type' => 'submit',
         '#value' => t('Pull translations'),
         '#submit' => [[$this, 'submitPullTranslations']],
         '#weight' => -10,
+        '#disabled' => !$ready_translation,
       ];
     }
 
