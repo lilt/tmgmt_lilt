@@ -323,6 +323,11 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @throws \Drupal\tmgmt\TMGMTException
    */
   public function createLiltProject(JobInterface $job) {
+    // Remember last submitted job label & due date.
+    $_SESSION['tmgmt_lilt'] = [
+      'last_job_label' => $job->get('label')->value,
+      'last_job_due_date' => $job->getSetting('due_date'),
+    ];
     // Prepare parameters for Project API.
     $name = $job->get('label')->value ?: 'Drupal Lilt project ' . $job->id();
     $params = [
