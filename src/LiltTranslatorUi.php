@@ -156,10 +156,12 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
 
     $tm_filter = $job->getTargetLangcode();
     $tm_filter = (strpos($tm_filter, '-') !== FALSE) ? explode('-', $tm_filter)[0] : $tm_filter;
+
+    $default_date = isset($_SESSION['tmgmt_lilt']['last_job_due_date']) ? $_SESSION['tmgmt_lilt']['last_job_due_date'] : DrupalDateTime::createFromTimestamp(time());
     $settings['due_date'] = [
       '#title' => t('Due Date'),
       '#type' => 'datetime',
-      '#default_value' => is_null($job->getSetting('due_date')) ? DrupalDateTime::createFromTimestamp(time()) : $job->getSetting('due_date'),
+      '#default_value' => is_null($job->getSetting('due_date')) ? $default_date : $job->getSetting('due_date'),
       '#description' => t('The date on which the translation job is due.'),
       '#date_date_element' => 'date',
       '#date_time_element' => 'time',
