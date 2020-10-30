@@ -18,6 +18,7 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use function GuzzleHttp\Psr7\parse_query;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Lilt translation plugin controller.
@@ -450,6 +451,10 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     }
 
     tmgmt_write_request_messages($job);
+
+    return new RedirectResponse(Url::fromRoute('entity.tmgmt_job.canonical', ['tmgmt_job' => $job->id()], [
+      'query' => ['destination' => '/admin/tmgmt/jobs']]
+    )->toString());
   }
 
   /**
