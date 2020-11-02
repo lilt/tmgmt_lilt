@@ -219,6 +219,17 @@ function tmgmt_lilt_form_tmgmt_job_edit_form_alter(&$form, $form_state) {
   if (isset($form['translator_wrapper']['submit_all'])) {
     unset($form['translator_wrapper']['submit_all']);
   }
+
+  // If job is part of a queue re-use the last used label.
+  $job = $form_state->getFormObject()->getEntity();
+  $job_queue = \Drupal::service('tmgmt.queue');
+  if ($job->isSubmittable() && $job_queue->isJobInQueue($job) && ($job_queue->count() + $job_queue->getProcessed()) > 1) {
+    if (isset($form['label']['widget'][0]['value'])) {
+      $last_label = isset($_SESSION['tmgmt_lilt']['last_job_label']) ? $_SESSION['tmgmt_lilt']['last_job_label'] : '';
+      $label_widget = &$form['label']['widget'][0]['value'];
+      $label_widget['#default_value'] = ($label_widget['#default_value'] == '') ? $last_label : $label_widget['#default_value'];
+    }
+  }
 }
 
 /**
