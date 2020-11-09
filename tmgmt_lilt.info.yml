@@ -1,0 +1,9 @@
+name: Lilt Translator
+description: 'The Lilt translator module that integrates with the Translation Management Tool.'
+core_version_requirement: ^8.8 || ^9
+package: Translation Management
+dependencies:
+  - tmgmt:tmgmt
+  - tmgmt:tmgmt_file
+type: module
+configure: entity.tmgmt_translator.collection
