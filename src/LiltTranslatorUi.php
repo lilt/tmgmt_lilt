@@ -10,7 +10,6 @@ use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
 use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
-use Drupal\Core\Cache\CacheBackendInterface;
 
 /**
  * Lilt translator UI.
