@@ -9,6 +9,8 @@ use Drupal\tmgmt_lilt\LiltTranslatorUi;
  * Tests Lilt translator UI class.
  *
  * @coversDefaultClass \Drupal\tmgmt_lilt\LiltTranslatorUi
+ *
+ * @group tmgmt_lilt
  */
 class LiltTranslatorUiTest extends UnitTestCase {
 
