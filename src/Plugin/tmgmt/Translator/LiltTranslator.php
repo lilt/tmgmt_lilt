@@ -13,10 +13,8 @@ use Drupal\tmgmt\TMGMTException;
 use Drupal\tmgmt\Translator\AvailableResult;
 use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt\TranslatorPluginBase;
-use Drupal\Core\Cache\CacheBackendInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
-use function GuzzleHttp\Psr7\parse_query;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -116,7 +114,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    *
    * @throws \Drupal\tmgmt\TMGMTException
    */
-
   public function addTranslationToJob(JobInterface $job, $document_state, $project_id, $document_id, $remote_file_url) {
     $translated_file = $this->request('documents/files?is_xliff=false&id=' . $document_id, 'GET', [], TRUE);
     $file_data = $this->parseTranslationData($translated_file);
@@ -143,7 +140,8 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     try {
       $project_info = $this->getLiltProject($project_id);
       $project_info['archived'] = TRUE;
-      // The Lilt API enforces a range on this property. Unset from PUT body in case property is out range.
+      // The Lilt API enforces a range on this property.
+      // Unset from PUT body in case property is out range.
       // @see https://lilt.com/docs/api#operation--projects-put
       unset($project_info['sample_review_percentage']);
       $result = $this->sendApiRequest('projects', 'PUT', [], FALSE, FALSE, json_encode($project_info));
@@ -331,13 +329,13 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     // Prepare parameters for Project API.
     $name = $job->get('label')->value ?: 'Drupal Lilt project ' . $job->id();
     $params = [
-        'name' => $name,
-        'memory_id' => $job->getSetting('memory_id'),
-        'due_date' => $job->getSetting('due_date')->format('U'),
-        'metadata' => [
-          'connectorType' => 'drupal',
-          'notes' => 'Drupal Lilt project ' . $job->id(),
-        ]
+      'name' => $name,
+      'memory_id' => $job->getSetting('memory_id'),
+      'due_date' => $job->getSetting('due_date')->format('U'),
+      'metadata' => [
+        'connectorType' => 'drupal',
+        'notes' => 'Drupal Lilt project ' . $job->id(),
+      ],
     ];
     $result = $this->sendApiRequest('projects', 'POST', [], FALSE, FALSE, json_encode($params));
 
@@ -351,6 +349,8 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    *   .XLIFF string to be translated. It is send as a file.
    * @param string $name
    *   File name of the .XLIFF file without extension.
+   * @param int $project_id
+   *   The Lilt project ID to be associated with the remote file (document).
    *
    * @return string
    *   The URL of uploaded file.
@@ -370,8 +370,11 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       'name' => $file_name,
       'project_id' => $project_id,
     ];
-    $optional_params = ['lilt_pretranslation' => 'pretranslate', 'lilt_auto_accept' => 'auto_accept', 'lilt_config_id' =>
-    'config_id'];
+    $optional_params = [
+      'lilt_pretranslation' => 'pretranslate',
+      'lilt_auto_accept' => 'auto_accept',
+      'lilt_config_id' => 'config_id',
+    ];
     foreach ($optional_params as $param => $query) {
       $param_value = $this->translator->getSetting($param);
       if (isset($param_value) && $param_value != '') {
@@ -391,7 +394,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       throw new TMGMTException('Could not Upload the file ' . $file_name . ' to Lilt.');
     }
 
-    $res = json_decode($file_response->getBody(), true);
+    $res = json_decode($file_response->getBody(), TRUE);
     return $res['id'];
   }
 
@@ -452,14 +455,16 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       }
     }
     else {
-      \Drupal::messenger()->addError(t('Error(s) occurred during fetching translations for Job: @error', ['@error' => implode('; ', $errors)]));
+      \Drupal::messenger()->addError(t('Error(s) occurred during fetching translations for Job: @error',
+        ['@error' => implode('; ', $errors)]
+      ));
     }
 
     tmgmt_write_request_messages($job);
 
     return new RedirectResponse(Url::fromRoute('entity.tmgmt_job.canonical', ['tmgmt_job' => $job->id()], [
-      'query' => ['destination' => '/admin/tmgmt/jobs']]
-    )->toString());
+      'query' => ['destination' => '/admin/tmgmt/jobs'],
+    ])->toString());
   }
 
   /**
@@ -563,7 +568,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @return array
    *   Associative array with basic remote data.
    */
-  static function getJobItemMapping(JobItemInterface $job_item) {
+  public static function getJobItemMapping(JobItemInterface $job_item) {
     $remote_mapping = $job_item->getRemoteMappings();
     $remote_mapping = end($remote_mapping);
     return [
@@ -576,13 +581,13 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   /**
    * Get a Lilt project ID for a Job.
    *
-   * @param \Drupal\tmgmt\Entity\Job $job_item
-   *   Job.
+   * @param \Drupal\tmgmt\Entity\Job $job
+   *   The TMGMT job entity used for remote project ID lookup.
    *
    * @return string|false
    *   The Lilt project ID or FALSE.
    */
-  static function getJobProjectId(Job $job) {
+  public static function getJobProjectId(Job $job) {
     $remote_mapping = $job->getRemoteMappings();
     $remote_mapping = end($remote_mapping);
     return isset($remote_mapping->remote_identifier_2->value) ? $remote_mapping->remote_identifier_2->value : FALSE;
@@ -597,7 +602,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    * @return string
    *   The Lilt App base URL.
    */
-  static function getLiltAppURL(TranslatorInterface $translator) {
+  public static function getLiltAppUrl(TranslatorInterface $translator) {
     return $translator->getSetting('lilt_app_url');
   }
 
@@ -647,7 +652,8 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    *   An optional ISO 639-1 language code to filter for.
    *
    * @return array|int|null
-   *   The keyed array (ID => NAME) of objects containing all translation memories.
+   *   The keyed array (ID => NAME) of objects containing all translation
+   *   memories.
    */
   public function getTranslationMemories($trglang = '') {
     $output = [];

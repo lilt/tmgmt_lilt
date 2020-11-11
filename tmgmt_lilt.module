@@ -8,11 +8,8 @@
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\Core\Database\Database;
 use Drupal\tmgmt\Entity\Job;
-use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
-use Drupal\tmgmt_lilt\LiltTranslatorUi;
 use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
 
 /**
@@ -30,7 +27,7 @@ function tmgmt_lilt_entity_operation(EntityInterface $entity) {
     }
 
     $operations['lilt_view'] = [
-      'url' => Url::fromUri(LiltTranslator::getLiltAppURL($entity->getTranslator()) . 'projects/details/' . $project_id, [
+      'url' => Url::fromUri(LiltTranslator::getLiltAppUrl($entity->getTranslator()) . 'projects/details/' . $project_id, [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -52,7 +49,7 @@ function tmgmt_lilt_entity_operation(EntityInterface $entity) {
     }
 
     $operations['lilt_view'] = [
-      'url' => Url::fromUri(LiltTranslator::getLiltAppURL($entity->getTranslator()) . 'projects/details/' . $project_id . '/edit-document/' . $document_id, [
+      'url' => Url::fromUri(LiltTranslator::getLiltAppUrl($entity->getTranslator()) . 'projects/details/' . $project_id . '/edit-document/' . $document_id, [
         'attributes' => [
           'target' => '_blank',
         ],
@@ -98,10 +95,10 @@ function tmgmt_lilt_form_tmgmt_job_delete_form_alter(&$form, $form_state) {
   $jobs_items = $job->getItems();
   if (!empty($jobs_items)) {
     $remote = LiltTranslator::getJobItemMapping(reset($jobs_items));
-    $form['tmgmt_lilt_project_id'] = array(
+    $form['tmgmt_lilt_project_id'] = [
       '#type' => 'hidden',
       '#value' => $remote['project_id'],
-    );
+    ];
     $form['actions']['submit']['#submit'][] = 'tmgmt_lilt_form_tmgmt_job_delete_form_delete_submit';
   }
 }
@@ -152,7 +149,7 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
   $plugin = $job_item->getTranslatorPlugin();
   $plugin->setTranslator($job_item->getTranslator());
   $remote = LiltTranslator::getJobItemMapping($job_item);
-  list('module_name' => $module_name, 'document_id' => $document_id, 'project_id' => $project_id) = $remote;
+  list('document_id' => $document_id) = $remote;
   /** @var array $lilt_doc */
   $lilt_doc = $plugin->getLiltDocument($document_id);
   if (empty($lilt_doc) || !array_key_exists('status', $lilt_doc)) {
@@ -176,7 +173,7 @@ function tmgmt_lilt_form_tmgmt_job_item_edit_form_alter(&$form, $form_state) {
 }
 
 /**
- * Handle job item accept submissions to archive Lilt projects on TMGMT job completion.
+ * Archive Lilt projects on accepting all translation segments.
  *
  * @param array $form
  *   An associative array containing the structure of the form.

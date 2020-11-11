@@ -3,20 +3,14 @@
 namespace Drupal\tmgmt_lilt;
 
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Ajax\RemoveCommand;
-use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\Core\Link;
-use Drupal\Core\Cache\Cache;
-use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\tmgmt\JobInterface;
 use Drupal\tmgmt\JobItemInterface;
 use Drupal\tmgmt\TranslatorPluginUiBase;
-use Drupal\tmgmt\TranslatorInterface;
 use Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator;
+use Drupal\Core\Cache\CacheBackendInterface;
 
 /**
  * Lilt translator UI.
@@ -109,14 +103,15 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
       $project_info = $translator_plugin->getLiltProject($project_id);
 
       $ready_translation = ($project_info['state'] == 'done');
-      $project_url = Url::fromUri(LiltTranslator::getLiltAppURL($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
+      $project_url = Url::fromUri(LiltTranslator::getLiltAppUrl($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
       if (!$ready_translation) {
         \Drupal::messenger()->addWarning(t("The <a href=:project_url  target='_blank'>Lilt translation project</a> for this job hasn't completed yet.", [
-        ':project_url' => $project_url,
+          ':project_url' => $project_url,
         ]));
-      } else {
+      }
+      else {
         \Drupal::messenger()->addMessage(t("The <a href=:project_url  target='_blank'>Lilt translation project</a> for this job has completed. The <strong>Pull translations</strong> button will retrieve the translations.", [
-        ':project_url' => $project_url,
+          ':project_url' => $project_url,
         ]));
       }
 
@@ -128,9 +123,9 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
         '#disabled' => !$ready_translation,
       ];
     }
-    else  {
+    else {
       if ($project_id = LiltTranslator::getJobProjectId($job)) {
-        $project_url = Url::fromUri(LiltTranslator::getLiltAppURL($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
+        $project_url = Url::fromUri(LiltTranslator::getLiltAppUrl($job->getTranslator()) . 'projects/details/' . $project_id)->toString();
         $form['lilt_status'] = [
           '#markup' => t("<span>The <a href=:project_url  target='_blank'>Lilt translation project</a> has been archived.</span>", [
             ':project_url' => $project_url,
@@ -208,9 +203,9 @@ class LiltTranslatorUi extends TranslatorPluginUiBase {
 
     // Log message.
     $item->getJob()->addMessage('Lilt Document @document_id for Project @project_id was completed', [
-        '@document_id' => $document_id,
-        '@project_id' => $project_id,
-      ]);
+      '@document_id' => $document_id,
+      '@project_id' => $project_id,
+    ]);
     \Drupal::messenger()->addMessage(t('Lilt Document @document_id for Project @project_id was completed', [
       '@document_id' => $document_id,
       '@project_id' => $project_id,
