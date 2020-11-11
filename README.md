@@ -14,15 +14,17 @@ This installation guide assumes you've already configured the Drupal core
 multilingual modules as needed for your setup.
 
 1. Install TMGMT (if not installed)
-  - `composer require 'drupal/tmgmt:^1.11'` or tarball extraction to `modules/contrib`
+  - `composer require 'drupal/tmgmt:^1.11'` or tarball extraction
+    to `modules/contrib`
   - `drush en tmgmt` or via `/admin/modules` admin UI.
 2. Install Lilt TMGMT
-  - `composer require 'drupal/tmgmt_lilt:^1.0'` or tarball extraction to `modules/contrib`
+  - `composer require 'drupal/tmgmt_lilt:^1.0'` or tarball extraction
+    to `modules/contrib`
   - `drush en tmgmt_lilt` or via `/admin/modules` admin UI.
 3. Config Lilt Provider
   - Via Drush:
     - `drush cset tmgmt.translator.lilt weight -20`
-    - `drush cset tmgmt.translator.lilt settings.lilt_api_key "$MY_LILT_API_KEY"`
+    - `drush cset tmgmt.translator.lilt settings.lilt_api_key "$LILT_API_KEY"`
   - Via UI:
     - Browse to `/admin/tmgmt/translators`
     - Drag priority to make **Lilt** the top provider.
