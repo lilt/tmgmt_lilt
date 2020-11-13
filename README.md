@@ -55,6 +55,6 @@ DEVELOPMENT
 ------------
 
 Use the [GitHub project](http://github.com/lilt/tmgmt_lilt) for code
-contributions, bug reports, feature requests, etc. If you'd like to contibute
+contributions, bug reports, feature requests, etc. If you'd like to contribute
 to the module, you can use [this project](https://github.com/lilt/lilt_drupal_env)
 as a self-contained development environment.
