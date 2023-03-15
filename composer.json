@@ -17,7 +17,7 @@
     }
   ],
   "require": {
-    "drupal/core": "^9 || ^10",
+    "drupal/core": "^8.8 || ^9 || ^10",
     "drupal/tmgmt": "^1.0"
   }
 }
