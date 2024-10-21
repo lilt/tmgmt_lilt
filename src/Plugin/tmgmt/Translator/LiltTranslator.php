@@ -18,6 +18,10 @@ use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+const DRUPAL_LANG_FILTER_MAP = [
+  'zh' => 'zt', // drupal language code ===> Lilt language code
+];
+
 /**
  * Lilt translation plugin controller.
  *
@@ -658,6 +662,12 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   public function getTranslationMemories($trglang = '') {
     $output = [];
     $memories = $this->sendApiRequest('memories');
+
+    // If there is a Drupal language code map, then use it.
+    if (array_key_exists($trglang, DRUPAL_LANG_FILTER_MAP)) {
+      $trglang = DRUPAL_LANG_FILTER_MAP[$trglang];
+    }
+
     if (is_array($memories)) {
       foreach ($memories as $memory) {
         if ($trglang == '' || $memory['trglang'] == $trglang) {
