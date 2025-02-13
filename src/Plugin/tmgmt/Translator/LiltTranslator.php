@@ -554,6 +554,125 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
   }
 
   /**
+   * Fetch translations for all job items synchronously in cron job.
+   * It is a copy of: fetchTranslatedFiles
+   *
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   The translation job.
+   */
+  public function fetchAsyncTranslatedFiles(JobInterface $job) {
+    $job_items = $job->getItems();
+    
+    // Initialize our results array.
+    $results = [
+      'job_id'      => $job->id(),
+      'translated'  => 0,
+      'errors'      => [],
+    ];
+    
+    // Process each job item.
+    foreach ($job_items as $job_item) {
+      $this->processJobItemTranslation($job, $job_item, $results);
+    }
+    
+    // Calculate the untranslated count.
+    $results['untranslated'] = count($job_items) - $results['translated'];
+    
+    // Report the results.
+    $this->reportAsyncTranslationResults($job, $results);
+  }
+
+  /**
+   * Process a single job item to pull its translation, 
+   * being a copy of fetchTranslationsBatchProcess
+   *
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   Drupal tmgmt Job.
+   * @param \Drupal\tmgmt\JobItemInterface $job_item
+   *   The job item to process.
+   * @param array &$results
+   *   An array passed by reference to accumulate processing results. It has
+   *   keys 'translated' (integer) and 'errors' (array).
+   */
+  protected function processJobItemTranslation(Job $job, JobItemInterface $job_item, array &$results) {
+    
+    // Load remote mappings for the job item.
+    $mappings = \Drupal\tmgmt\Entity\RemoteMapping::loadByLocalData($job->id(), $job_item->id());
+    
+    $is_item_translated = FALSE;
+    foreach ($mappings as $mapping) {
+      try {
+        $this->addTranslationToJob(
+          $job,
+          NULL,
+          $mapping->getRemoteIdentifier2(),
+          $mapping->getRemoteIdentifier3(),
+          NULL
+        );
+        $is_item_translated = TRUE;
+      }
+      catch (\Drupal\tmgmt\TMGMTException $e) {
+        // Log the error for this job item.
+        $job->addMessage(t('Exception occurred while fetching the job item "@job_item": @error.', [
+          '@job_item' => $job_item->label(),
+          '@error'    => $e->getMessage(),
+        ]), 'error');
+        $results['errors'][] = t('Exception occurred while fetching the job item @job_item', [
+          '@job_item' => $job_item->label(),
+        ]);
+      }
+    }
+    
+    if ($is_item_translated) {
+      // publish the result
+      $results['translated']++;
+      $job_item->save();
+    }
+  }
+
+  /**
+   * Report the aggregated translation results.
+   *
+   * This helper function writes messages based on how many job items were
+   * successfully translated and whether any errors occurred.
+   *
+   * @param \Drupal\tmgmt\JobInterface $job
+   *   The translation job.
+   * @param array $results
+   *   An associative array with the following keys:
+   *   - translated: (int) number of job items translated.
+   *   - untranslated: (int) number of job items not translated.
+   *   - errors: (array) errors encountered during processing.
+   */
+  protected function reportAsyncTranslationResults(JobInterface $job, array $results) {
+    $translated   = $results['translated'];
+    $untranslated = $results['untranslated'];
+    $errors       = $results['errors'];
+    
+    if (empty($errors)) {
+      if ($translated > 0 && $untranslated === 0) {
+        $job->addMessage(t('Fetched translations for all @translated job item(s).', ['@translated' => $translated]));
+      }
+      elseif ($translated > 0) {
+        $job->addMessage(t('Fetched translations for @translated job item(s), but @untranslated remain untranslated.', [
+          '@translated'   => $translated,
+          '@untranslated' => $untranslated,
+        ]));
+      }
+      else {
+        \Drupal::messenger()->addMessage(t('No job item has been translated yet.'));
+      }
+    }
+    else {
+      \Drupal::messenger()->addError(t('Error(s) occurred during fetching translations for the job: @error', [
+        '@error' => implode('; ', $errors),
+      ]));
+    }
+    
+    tmgmt_write_request_messages($job);
+  }
+
+  /**
    * Gets the supported Lilt languages.
    *
    * @return array|int|null
