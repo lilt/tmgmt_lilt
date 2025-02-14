@@ -159,8 +159,9 @@ class PublishTranslations extends QueueWorkerBase implements ContainerFactoryPlu
     if (isset($project_info['state']) && $project_info['state'] === 'done') {
       // process single project if not array returned;
       $translator_plugin->fetchAsyncTranslatedFiles($job);
-      // Mark the job as finished.
-      $job->addMessage(t('Translations have been pulled and published.'));
+      // Accept the translations and mark the job finished
+      $job->acceptTranslation();
+      $job->finished();
     } 
     else {
       $job->addMessage(t('The Lilt project is in state: @state. Could not fetch translations', ['@state' => $project_info['state']]));

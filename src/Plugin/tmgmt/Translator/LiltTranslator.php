@@ -553,14 +553,14 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     batch_set($batch);
   }
 
-  /**
+/**
    * Fetch translations for all job items synchronously in cron job.
    * It is a copy of: fetchTranslatedFiles
    *
-   * @param \Drupal\tmgmt\JobInterface $job
+   * @param \Drupal\tmgmt\Entity\Job $job
    *   The translation job.
    */
-  public function fetchAsyncTranslatedFiles(JobInterface $job) {
+  public function fetchAsyncTranslatedFiles(Job $job) {
     $job_items = $job->getItems();
     
     // Initialize our results array.
@@ -626,7 +626,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     if ($is_item_translated) {
       // publish the result
       $results['translated']++;
-      $job_item->save();
     }
   }
 
