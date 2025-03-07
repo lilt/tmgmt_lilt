@@ -239,3 +239,29 @@ function tmgmt_lilt_form_views_exposed_form_alter(&$form, $form_state) {
     \Drupal::messenger()->addWarning(t('NOTE: Drupal word count may differ from Lilt.'));
   }
 }
+
+/**
+ * Implements hook_cron().
+ */
+function tmgmt_lilt_cron() {
+  // Load active translation jobs.
+  $job_ids = \Drupal::entityQuery('tmgmt_job')
+    ->condition('state', Job::STATE_ACTIVE)
+    ->execute();
+
+  if (!empty($job_ids)) {
+    $queue = \Drupal::queue('tmgmt_lilt_publish_translations');
+    foreach ($job_ids as $job_id) {
+      /** @var \Drupal\tmgmt\Entity\Job $job */
+      $job = \Drupal\tmgmt\Entity\Job::load($job_id);
+      // Only queue jobs that use the Lilt translator.
+      if ($job && $job->hasTranslator() && $job->getTranslatorId() === 'lilt') {
+        // Optionally, check for the existence of a remote project.
+        $project_id = \Drupal\tmgmt_lilt\Plugin\tmgmt\Translator\LiltTranslator::getJobProjectId($job);
+        if ($project_id) {
+          $queue->createItem(['job_id' => $job_id]);
+        }
+      }
+    }
+  }
+}
