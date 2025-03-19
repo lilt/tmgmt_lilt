@@ -18,6 +18,42 @@ use GuzzleHttp\Exception\RequestException;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
+const SPECIAL_LANG_CODES = [
+    "00", // Filipino; Pilipino
+    "01", // Serbian (Latin)
+    "02", // Serbian (Cyrillic)
+    "03", // Dhuluo
+    "04", // Balochi
+    "05", // Eastern Balochi
+    "06", // Western Balochi
+    "07", // Kachi
+    "08", // Koroshi
+    "09", // Nobiin
+    10, // Hijazi
+    11, // Najdi
+    12, // Zaza
+    13, // Acholi
+    14, // Moore (Mossi)
+    15, // Lozi
+    16, // Ibibio
+    17, // Kosraean
+    18, // Yapese
+    19, // Pohnpeian
+    20, // Chuukese
+    21, // Hiligaynon
+    22, // Sorani (Kurdish)
+    23, // Gilbertese (Kiribati)
+    24, // Bemba
+    25, // Tok Pisin
+    26, // Koalib
+    27, // Tongan
+    28, // Gilaki
+    29, // Montenegrin
+    30, // Iloko
+    'zt',
+    'zh'
+];
+
 /**
  * Lilt translation plugin controller.
  *
@@ -779,6 +815,12 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
 
     if (is_array($memories)) {
       foreach ($memories as $memory) {
+        // Fix Missing memories using language with special code
+        if (in_array($trglang, SPECIAL_LANG_CODES) &&
+            in_array($memory['trglang'],  SPECIAL_LANG_CODES)) {
+          $output[$memory['id']] = $memory['name'];
+          continue;
+        }
         if ($trglang == '' || $memory['trglang'] == $trglang) {
           $output[$memory['id']] = $memory['name'];
         }
