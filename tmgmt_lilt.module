@@ -247,6 +247,7 @@ function tmgmt_lilt_cron() {
   // Load active translation jobs.
   $job_ids = \Drupal::entityQuery('tmgmt_job')
     ->condition('state', Job::STATE_ACTIVE)
+    ->accessCheck(FALSE)
     ->execute();
 
   if (!empty($job_ids)) {
