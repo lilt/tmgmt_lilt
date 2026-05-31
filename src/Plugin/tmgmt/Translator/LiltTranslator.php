@@ -67,6 +67,16 @@ const SPECIAL_LANG_CODES = [
 class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPluginInterface, ContinuousTranslatorInterface {
 
   /**
+   * Connector version reported to the Lilt API.
+   *
+   * Sent as the `X-Lilt-Connector-Version` header on every outbound request.
+   * Must be semver (MAJOR.MINOR.PATCH) — the connectors API expects that form.
+   * Derived from the Drupal package release tag, dropping the `8.x-` core
+   * compatibility prefix: tag `8.x-1.6` -> `1.6.0`. Bump on each release.
+   */
+  const CONNECTOR_VERSION = '1.6.0';
+
+  /**
    * Guzzle HTTP client.
    *
    * @var \GuzzleHttp\ClientInterface
@@ -422,6 +432,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
     $options['headers']['Authorization'] = 'Basic ' . base64_encode($api_key . ':' . $api_key);
     $options['headers']['Content-Type'] = 'application/octet-stream';
     $options['headers']['LILT-API'] = json_encode($params);
+    $options['headers']['X-Lilt-Connector-Version'] = 'drupal/' . self::CONNECTOR_VERSION;
     $options['body'] = $xliff;
 
     // We don't need apiRequest here just common request.
@@ -957,6 +968,7 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
       $options['headers'] = [
         'Content-Type' => 'application/json',
         'Authorization' => 'Basic ' . base64_encode($api_key . ':' . $api_key),
+        'X-Lilt-Connector-Version' => 'drupal/' . self::CONNECTOR_VERSION,
       ];
     }
 
