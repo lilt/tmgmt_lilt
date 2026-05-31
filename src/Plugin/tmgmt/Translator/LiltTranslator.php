@@ -71,8 +71,6 @@ class LiltTranslator extends TranslatorPluginBase implements ContainerFactoryPlu
    *
    * Sent as the `X-Lilt-Connector-Version` header on every outbound request.
    * Must be semver (MAJOR.MINOR.PATCH) — the connectors API expects that form.
-   * Derived from the Drupal package release tag, dropping the `8.x-` core
-   * compatibility prefix: tag `8.x-1.6` -> `1.6.0`. Bump on each release.
    */
   const CONNECTOR_VERSION = '1.6.0';
 
